@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesa en Orden</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --sage: #6B8F71;
+    --dark-green: #3D5A40;
+    --coral: #E07A5F;
+    --mustard: #C9A84C;
+    --beige: #F5F0E8;
+    --warm-gray: #8B8680;
+    --white: #FFFFFF;
+    --text: #2C2C2A;
+    --text-muted: #6B6A67;
+    --border: rgba(0,0,0,0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  body { font-family: 'Nunito', 'Segoe UI', sans-serif; background: var(--beige); color: var(--text); min-height: 100vh; }
+
+  /* AUTH */
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--beige); padding: 1rem; }
+  .auth-card { background: var(--white); border-radius: var(--radius); padding: 2rem; width: 100%; max-width: 380px; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
+  .auth-logo { text-align: center; margin-bottom: 1.5rem; }
+  .auth-logo .brand { font-size: 24px; font-weight: 700; color: var(--dark-green); letter-spacing: 2px; }
+  .auth-logo .brand span { color: var(--coral); }
+  .auth-logo .tagline { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .auth-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 1.25rem; text-align: center; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+  .field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; outline: none; background: var(--beige); font-family: inherit; }
+  .field input:focus { border-color: var(--sage); background: white; }
+  .btn-primary { width: 100%; padding: 12px; background: var(--dark-green); color: white; border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.5px; }
+  .btn-primary:hover { background: var(--sage); }
+  .auth-switch { text-align: center; margin-top: 1rem; font-size: 13px; color: var(--text-muted); }
+  .auth-switch a { color: var(--coral); cursor: pointer; font-weight: 600; text-decoration: none; }
+  .msg-error { background: #FEF2F2; color: #991B1B; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 1rem; border: 1px solid #FECACA; }
+  .msg-success { background: #F0FDF4; color: #166534; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 1rem; }
+
+  /* APP SHELL */
+  .app { display: none; flex-direction: column; min-height: 100vh; }
+  .app.active { display: flex; }
+  .topbar { background: var(--dark-green); color: white; padding: 0 1rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-logo { font-size: 17px; font-weight: 700; letter-spacing: 2px; }
+  .topbar-logo span { color: var(--coral); }
+  .topbar-user { display: flex; align-items: center; gap: 8px; }
+  .topbar-user span { font-size: 13px; opacity: 0.8; }
+  .btn-logout { background: rgba(255,255,255,0.15); border: none; color: white; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+  /* BOTTOM NAV */
+  .bottom-nav { background: var(--white); border-top: 1px solid var(--border); display: flex; position: sticky; bottom: 0; z-index: 100; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px; border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 11px; font-weight: 600; font-family: inherit; }
+  .nav-item.active { color: var(--dark-green); }
+  .nav-icon { font-size: 22px; }
+
+  /* CONTENT */
+  .content { flex: 1; padding: 1rem; max-width: 700px; margin: 0 auto; width: 100%; padding-bottom: 1.5rem; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 20px; font-weight: 700; color: var(--dark-green); }
+
+  /* CARDS */
+  .card { background: var(--white); border-radius: var(--radius); padding: 1rem; margin-bottom: 0.75rem; border: 1px solid var(--border); }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .card-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-pollo { background: #FEF9C3; color: #854D0E; }
+  .badge-carne { background: #FEE2E2; color: #991B1B; }
+  .badge-cerdo { background: #FCE7F3; color: #9D174D; }
+  .badge-pescado { background: #DBEAFE; color: #1E40AF; }
+  .badge-vegetal { background: #DCFCE7; color: #166534; }
+  .badge-huevo { background: #FFF7ED; color: #9A3412; }
+  .badge-adulto { background: #E0E7FF; color: #3730A3; }
+  .badge-bebe { background: #FCE7F3; color: #9D174D; }
+
+  /* BUTTONS */
+  .btn { padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+  .btn-green { background: var(--dark-green); color: white; }
+  .btn-green:hover { background: var(--sage); }
+  .btn-coral { background: var(--coral); color: white; }
+  .btn-coral:hover { opacity: 0.9; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--beige); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 6px; border-radius: 6px; font-size: 16px; }
+  .btn-icon:hover { background: var(--beige); }
+
+  /* TABS */
+  .tabs { display: flex; margin-bottom: 1rem; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+  .tab { flex: 1; padding: 9px; background: var(--white); border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); font-family: inherit; }
+  .tab.active { background: var(--dark-green); color: white; }
+
+  /* FILTERS */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .filter-btn { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--white); cursor: pointer; color: var(--text-muted); font-family: inherit; }
+  .filter-btn.active { background: var(--dark-green); color: white; border-color: var(--dark-green); }
+
+  /* SEARCH */
+  .search-box { position: relative; margin-bottom: 1rem; }
+  .search-box input { width: 100%; padding: 9px 11px 9px 36px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; outline: none; background: var(--white); font-family: inherit; }
+  .search-box input:focus { border-color: var(--sage); }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--white); border-radius: var(--radius); padding: 1.5rem; width: 100%; max-width: 500px; margin: auto; }
+  .modal-title { font-size: 17px; font-weight: 700; color: var(--dark-green); margin-bottom: 1.25rem; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+  .form-row { margin-bottom: 1rem; }
+  .form-row label { display: block; font-size: 13px; color: var(--text-muted); font-weight: 500; margin-bottom: 4px; }
+  .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; outline: none; background: var(--beige); font-family: inherit; }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--sage); background: white; }
+  .form-row textarea { resize: vertical; min-height: 80px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* SHOPPING LIST */
+  .list-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border-bottom: none; }
+  .list-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--dark-green); cursor: pointer; flex-shrink: 0; }
+  .list-item.checked .item-name { text-decoration: line-through; color: var(--text-muted); }
+  .item-name { flex: 1; font-size: 14px; }
+  .item-qty { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .category-label { font-size: 11px; font-weight: 700; color: var(--sage); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+
+  /* PLANNER */
+  .day-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; margin-bottom: 0.5rem; }
+  .day-header { background: var(--dark-green); color: white; padding: 8px 12px; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+  .day-body { padding: 8px 12px; }
+  .meal-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .meal-row:last-child { border-bottom: none; }
+  .meal-label { color: var(--text-muted); font-size: 11px; width: 55px; flex-shrink: 0; font-weight: 600; }
+  .meal-name { flex: 1; color: var(--text); }
+  .meal-empty { color: var(--border); font-style: italic; }
+
+  /* SECTION HEADER */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+
+  /* EMPTY / LOADING */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  .empty-icon { font-size: 44px; margin-bottom: 0.75rem; }
+  .empty p { font-size: 14px; line-height: 1.6; }
+  .loading { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 14px; }
+
+  /* PROGRESS */
+  .progress-bar { background: var(--beige); border-radius: 20px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .progress-fill { background: var(--dark-green); height: 100%; border-radius: 20px; transition: width 0.3s; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--dark-green); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth-wrap" id="authWrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="brand">MESA <span>EN ORDEN</span></div>
+      <div class="tagline">Todo en orden para comer mejor</div>
+    </div>
+    <div id="authMsg"></div>
+    <div id="loginForm">
+      <div class="auth-title">Iniciar sesión</div>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="tu@email.com"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+      <button class="btn-primary" onclick="doLogin()">Entrar</button>
+      <div class="auth-switch">¿No tienes cuenta? <a onclick="showRegister()">Regístrate</a></div>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div class="auth-title">Crear cuenta</div>
+      <div class="field"><label>Nombre</label><input type="text" id="regName" placeholder="Tu nombre"></div>
+      <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="tu@email.com"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres"></div>
+      <button class="btn-primary" onclick="doRegister()">Crear cuenta</button>
+      <div class="auth-switch">¿Ya tienes cuenta? <a onclick="showLogin()">Inicia sesión</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">MESA <span>EN ORDEN</span></div>
+    <div class="topbar-user">
+      <span id="userLabel"></span>
+      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- RECETARIO -->
+    <div class="page active" id="pageRecetas">
+      <div class="section-header">
+        <div class="page-title">Recetario</div>
+        <button class="btn btn-green btn-sm" onclick="openAddRecipe()">+ Añadir</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchRecipeTab('adulto',this)">🧑 Adultos</button>
+        <button class="tab" onclick="switchRecipeTab('bebe',this)">👶 Emma</button>
+      </div>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="recipeSearch" placeholder="Buscar receta..." oninput="renderRecipes()">
+      </div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterProtein('',this)">Todas</button>
+        <button class="filter-btn" onclick="filterProtein('pollo',this)">🍗 Pollo</button>
+        <button class="filter-btn" onclick="filterProtein('carne',this)">🥩 Carne</button>
+        <button class="filter-btn" onclick="filterProtein('cerdo',this)">🐖 Cerdo</button>
+        <button class="filter-btn" onclick="filterProtein('pescado',this)">🐟 Pescado</button>
+        <button class="filter-btn" onclick="filterProtein('vegetal',this)">🥦 Vegetal</button>
+        <button class="filter-btn" onclick="filterProtein('huevo',this)">🥚 Huevo</button>
+      </div>
+      <div id="recipesList"><div class="loading">Cargando...</div></div>
+    </div>
+
+    <!-- PLANIFICADOR -->
+    <div class="page" id="pagePlanificador">
+      <div class="section-header">
+        <div class="page-title">Menú semanal</div>
+        <button class="btn btn-green btn-sm" onclick="generateMenu()">✨ Generar</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchPlanTab('adulto',this)">🧑 Adultos</button>
+        <button class="tab" onclick="switchPlanTab('bebe',this)">👶 Emma</button>
+      </div>
+      <div id="plannerContent">
+        <div class="empty">
+          <div class="empty-icon">📅</div>
+          <p>Pulsa <strong>Generar</strong> para crear el menú de la semana automáticamente</p>
+        </div>
+      </div>
+      <div id="plannerActions" style="display:none; margin-top:1rem;">
+        <button class="btn btn-coral" style="width:100%; padding:13px; font-size:15px;" onclick="confirmMenu()">✓ Confirmar y crear lista de compra</button>
+      </div>
+    </div>
+
+    <!-- LISTA DE COMPRA -->
+    <div class="page" id="pageCompra">
+      <div class="section-header">
+        <div class="page-title">Lista de compra</div>
+        <div id="shoppingProgress" style="font-size:13px; color:var(--sage); font-weight:700;"></div>
+      </div>
+      <div id="shoppingContent">
+        <div class="empty">
+          <div class="empty-icon">🛒</div>
+          <p>Confirma un menú semanal para generar la lista</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="showPage('pageRecetas',this)">
+      <span class="nav-icon">📖</span>Recetas
+    </button>
+    <button class="nav-item" onclick="showPage('pagePlanificador',this)">
+      <span class="nav-icon">📅</span>Planificador
+    </button>
+    <button class="nav-item" onclick="showPage('pageCompra',this)">
+      <span class="nav-icon">🛒</span>Compra
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL RECETA -->
+<div class="modal-overlay" id="recipeModal">
+  <div class="modal">
+    <div class="modal-title" id="recipeModalTitle">Nueva receta</div>
+    <div class="form-row">
+      <label>Nombre del plato *</label>
+      <input type="text" id="rName" placeholder="Ej: Pollo al limón con arroz">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Categoría</label>
+        <select id="rCategory">
+          <option value="adulto">Adultos</option>
+          <option value="bebe">Emma (bebé)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Proteína</label>
+        <select id="rProtein">
+          <option value="">Sin proteína</option>
+          <option value="pollo">🍗 Pollo</option>
+          <option value="carne">🥩 Carne</option>
+          <option value="cerdo">🐖 Cerdo</option>
+          <option value="pescado">🐟 Pescado</option>
+          <option value="vegetal">🥦 Vegetal</option>
+          <option value="huevo">🥚 Huevo</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Notas / ingredientes / preparación</label>
+      <textarea id="rNotes" placeholder="Ingredientes, pasos, notas especiales..."></textarea>
+    </div>
+    <div class="form-row">
+      <label>Link a vídeo / reel (opcional)</label>
+      <input type="url" id="rVideo" placeholder="https://www.instagram.com/reel/...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('recipeModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="saveRecipe()">Guardar receta</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://tmfrpkjxdtthevbzikpz.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZnJwa2p4ZHR0aGV2Ynppa3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwOTg1MjAsImV4cCI6MjA5NjY3NDUyMH0.8ogU2wVaR5A9AbLO-pFb7YnWBI28WinkOo05HbFXL14';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let recipes = [];
+let activeRecipeTab = 'adulto';
+let activePlanTab = 'adulto';
+let activeProtein = '';
+let editingRecipeId = null;
+let currentMenu = {};
+
+const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+const BASICOS_FIJOS = [
+  { name: 'Leche', qty: '2 cajas ×6', cat: 'Lácteos' },
+  { name: 'Queso de Burgos', qty: '×3', cat: 'Lácteos' },
+  { name: 'Queso en lonchas', qty: '×3', cat: 'Lácteos' },
+  { name: 'Jamón', qty: '×1', cat: 'Charcutería' },
+  { name: 'Queso rallado', qty: '×2', cat: 'Lácteos' },
+  { name: 'Huevos', qty: '1 docena', cat: 'Frescos' },
+  { name: 'Pan de molde', qty: '×1', cat: 'Panadería' },
+  { name: 'Tortillas de trigo', qty: '×1', cat: 'Panadería' },
+];
+
+// ─── AUTH ───────────────────────────────────────────
+sb.auth.onAuthStateChange((event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    document.getElementById('authWrap').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    document.getElementById('userLabel').textContent = session.user.email.split('@')[0];
+    loadRecipes();
+  } else {
+    currentUser = null;
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('authWrap').style.display = 'flex';
+  }
+});
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  setAuthMsg('');
+  if (!email || !pass) { setAuthMsg('Completa todos los campos', true); return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) setAuthMsg(error.message === 'Invalid login credentials' ? 'Email o contraseña incorrectos' : error.message, true);
+}
+
+async function doRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  setAuthMsg('');
+  if (!name || !email || !pass) { setAuthMsg('Completa todos los campos', true); return; }
+  if (pass.length < 6) { setAuthMsg('La contraseña debe tener al menos 6 caracteres', true); return; }
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  if (error) { setAuthMsg(error.message, true); return; }
+  if (data.user) {
+    await sb.from('profiles').upsert({ id: data.user.id, name });
+    setAuthMsg('✅ Cuenta creada. Revisa tu email para confirmar y luego inicia sesión.');
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+}
+
+function setAuthMsg(msg, isError = false) {
+  const el = document.getElementById('authMsg');
+  el.innerHTML = msg ? `<div class="${isError ? 'msg-error' : 'msg-success'}">${msg}</div>` : '';
+}
+
+function showRegister() { document.getElementById('loginForm').style.display='none'; document.getElementById('registerForm').style.display='block'; setAuthMsg(''); }
+function showLogin() { document.getElementById('registerForm').style.display='none'; document.getElementById('loginForm').style.display='block'; setAuthMsg(''); }
+
+// ─── NAVIGATION ─────────────────────────────────────
+function showPage(pageId, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  btn.classList.add('active');
+  if (pageId === 'pageCompra') loadShoppingList();
+}
+
+// ─── RECETARIO ───────────────────────────────────────
+async function loadRecipes() {
+  const { data, error } = await sb.from('recipes').select('*').order('name');
+  if (!error) { recipes = data || []; }
+  renderRecipes();
+}
+
+function renderRecipes() {
+  const search = (document.getElementById('recipeSearch')?.value || '').toLowerCase();
+  let filtered = recipes.filter(r => r.category === activeRecipeTab);
+  if (activeProtein) filtered = filtered.filter(r => r.protein_type === activeProtein);
+  if (search) filtered = filtered.filter(r => r.name.toLowerCase().includes(search));
+
+  const el = document.getElementById('recipesList');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🍽️</div><p>No hay recetas aún.<br>Añade la primera pulsando <strong>+ Añadir</strong></p></div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(r => `
+    <div class="card">
+      <div class="card-header">
+        <div style="flex:1; min-width:0;">
+          <div class="card-title">${r.name}</div>
+          <div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">
+            ${r.protein_type ? `<span class="badge badge-${r.protein_type}">${emojiProtein(r.protein_type)} ${r.protein_type}</span>` : ''}
+            <span class="badge badge-${r.category}">${r.category === 'bebe' ? '👶 Emma' : '🧑 Adultos'}</span>
+          </div>
+        </div>
+        <div class="card-actions">
+          ${r.video_url ? `<a href="${r.video_url}" target="_blank" class="btn-icon" title="Ver vídeo">🎬</a>` : ''}
+          <button class="btn-icon" onclick="editRecipe('${r.id}')" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="deleteRecipe('${r.id}')" title="Eliminar">🗑️</button>
+        </div>
+      </div>
+      ${r.preparation_notes ? `<div style="font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.5;">${r.preparation_notes.substring(0,140)}${r.preparation_notes.length>140?'…':''}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function emojiProtein(p) {
+  const map = { pollo:'🍗', carne:'🥩', cerdo:'🐖', pescado:'🐟', vegetal:'🥦', huevo:'🥚' };
+  return map[p] || '';
+}
+
+function switchRecipeTab(tab, btn) {
+  activeRecipeTab = tab;
+  document.querySelectorAll('#pageRecetas .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecipes();
+}
+
+function filterProtein(protein, btn) {
+  activeProtein = protein;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecipes();
+}
+
+function openAddRecipe() {
+  editingRecipeId = null;
+  document.getElementById('recipeModalTitle').textContent = 'Nueva receta';
+  document.getElementById('rName').value = '';
+  document.getElementById('rCategory').value = activeRecipeTab;
+  document.getElementById('rProtein').value = '';
+  document.getElementById('rNotes').value = '';
+  document.getElementById('rVideo').value = '';
+  document.getElementById('recipeModal').classList.add('open');
+}
+
+function editRecipe(id) {
+  const r = recipes.find(x => x.id === id);
+  if (!r) return;
+  editingRecipeId = id;
+  document.getElementById('recipeModalTitle').textContent = 'Editar receta';
+  document.getElementById('rName').value = r.name;
+  document.getElementById('rCategory').value = r.category;
+  document.getElementById('rProtein').value = r.protein_type || '';
+  document.getElementById('rNotes').value = r.preparation_notes || '';
+  document.getElementById('rVideo').value = r.video_url || '';
+  document.getElementById('recipeModal').classList.add('open');
+}
+
+async function saveRecipe() {
+  const name = document.getElementById('rName').value.trim();
+  if (!name) { alert('El nombre es obligatorio'); return; }
+  const data = {
+    name,
+    category: document.getElementById('rCategory').value,
+    protein_type: document.getElementById('rProtein').value || null,
+    preparation_notes: document.getElementById('rNotes').value.trim() || null,
+    video_url: document.getElementById('rVideo').value.trim() || null,
+    meal_time: ['comida'],
+  };
+  if (editingRecipeId) {
+    await sb.from('recipes').update(data).eq('id', editingRecipeId);
+    showToast('Receta actualizada ✅');
+  } else {
+    await sb.from('recipes').insert(data);
+    showToast('Receta añadida ✅');
+  }
+  closeModal('recipeModal');
+  loadRecipes();
+}
+
+async function deleteRecipe(id) {
+  if (!confirm('¿Eliminar esta receta?')) return;
+  await sb.from('recipes').delete().eq('id', id);
+  showToast('Receta eliminada');
+  loadRecipes();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ─── PLANIFICADOR ────────────────────────────────────
+function switchPlanTab(tab, btn) {
+  activePlanTab = tab;
+  document.querySelectorAll('#pagePlanificador .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderPlanner();
+}
+
+function generateMenu() {
+  const adultRecipes = recipes.filter(r => r.category === 'adulto' && r.protein_type);
+  if (adultRecipes.length < 3) { alert('Añade al menos 3 recetas de adultos con proteína para generar el menú'); return; }
+
+  const distribution = ['pollo','pollo','carne','carne','pescado','pescado','cerdo'];
+  const shuffled = [...distribution].sort(() => Math.random() - 0.5);
+
+  currentMenu = {};
+  DAYS.forEach((day, i) => {
+    const protein = shuffled[i];
+    const adultPool = adultRecipes.filter(r => r.protein_type === protein);
+    const babyPool = recipes.filter(r => r.category === 'bebe' && r.protein_type === protein);
+    currentMenu[day] = {
+      adulto: adultPool.length ? adultPool[Math.floor(Math.random() * adultPool.length)] : null,
+      bebe: babyPool.length ? babyPool[Math.floor(Math.random() * babyPool.length)] : null,
+      protein
+    };
+  });
+
+  renderPlanner();
+  document.getElementById('plannerActions').style.display = 'block';
+  showToast('Menú generado ✨');
+}
+
+function renderPlanner() {
+  if (!Object.keys(currentMenu).length) return;
+  const el = document.getElementById('plannerContent');
+  el.innerHTML = DAYS.map(day => {
+    const slot = currentMenu[day];
+    const rec = slot ? slot[activePlanTab] : null;
+    const protein = slot?.protein || '';
+    return `
+      <div class="day-card">
+        <div class="day-header">
+          <span>${day}</span>
+          <span style="font-size:11px; opacity:0.8;">${emojiProtein(protein)} ${protein}</span>
+        </div>
+        <div class="day-body">
+          <div class="meal-row">
+            <span class="meal-label">Comida</span>
+            <span class="meal-name ${rec ? '' : 'meal-empty'}">${rec ? rec.name : 'Sin receta disponible'}</span>
+            <button class="btn-icon" onclick="changeRecipe('${day}')" title="Cambiar">🔄</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function changeRecipe(day) {
+  const slot = currentMenu[day];
+  if (!slot) return;
+  const pool = recipes.filter(r => r.category === activePlanTab && r.protein_type === slot.protein);
+  if (pool.length <= 1) { showToast('No hay más opciones con esa proteína'); return; }
+  const current = slot[activePlanTab];
+  const others = pool.filter(r => !current || r.id !== current.id);
+  currentMenu[day][activePlanTab] = others[Math.floor(Math.random() * others.length)];
+  renderPlanner();
+}
+
+async function confirmMenu() {
+  if (!currentUser) return;
+  const weekStart = getMonday(new Date()).toISOString().split('T')[0];
+
+  const proteinDist = {};
+  DAYS.forEach(d => { if (currentMenu[d]?.protein) proteinDist[d] = currentMenu[d].protein; });
+
+  const { data: menu, error } = await sb.from('weekly_menus').insert({
+    user_id: currentUser.id,
+    week_start: weekStart,
+    status: 'confirmed',
+    protein_distribution: proteinDist
+  }).select().single();
+
+  if (error) { alert('Error al guardar el menú: ' + error.message); return; }
+
+  const dayRows = [];
+  DAYS.forEach(day => {
+    const slot = currentMenu[day];
+    if (slot?.adulto) dayRows.push({ menu_id: menu.id, day_of_week: day, meal_time: 'comida', recipe_id: slot.adulto.id, person_type: 'adulto' });
+    if (slot?.bebe) dayRows.push({ menu_id: menu.id, day_of_week: day, meal_time: 'comida', recipe_id: slot.bebe.id, person_type: 'bebe' });
+  });
+  if (dayRows.length) await sb.from('weekly_menu_days').insert(dayRows);
+
+  await generateShoppingList(menu.id);
+  showToast('✅ Menú confirmado y lista generada');
+  setTimeout(() => {
+    document.querySelector('[onclick*="pageCompra"]').click();
+  }, 800);
+}
+
+function getMonday(d) {
+  const day = d.getDay(), diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+}
+
+// ─── LISTA DE COMPRA ─────────────────────────────────
+async function generateShoppingList(menuId) {
+  const { data: list } = await sb.from('shopping_lists').insert({
+    menu_id: menuId,
+    user_id: currentUser.id
+  }).select().single();
+  if (!list) return;
+
+  const items = BASICOS_FIJOS.map(b => ({
+    list_id: list.id,
+    ingredient_name: b.name,
+    unit: b.qty,
+    category: b.cat,
+    checked: false
+  }));
+  await sb.from('shopping_list_items').insert(items);
+}
+
+async function loadShoppingList() {
+  if (!currentUser) return;
+  const { data: lists } = await sb.from('shopping_lists')
+    .select('*').eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false }).limit(1);
+  if (!lists?.length) return;
+
+  const { data: items } = await sb.from('shopping_list_items')
+    .select('*').eq('list_id', lists[0].id)
+    .order('category').order('ingredient_name');
+  renderShoppingList(items || [], lists[0].id);
+}
+
+function renderShoppingList(items, listId) {
+  const el = document.getElementById('shoppingContent');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🛒</div><p>Lista vacía</p></div>';
+    return;
+  }
+
+  const checked = items.filter(i => i.checked).length;
+  const pct = Math.round((checked / items.length) * 100);
+  document.getElementById('shoppingProgress').innerHTML = `
+    <span>${checked}/${items.length}</span>
+    <div class="progress-bar" style="width:80px; display:inline-block; vertical-align:middle; margin-left:6px;">
+      <div class="progress-fill" style="width:${pct}%"></div>
+    </div>
+  `;
+
+  const byCategory = {};
+  items.forEach(item => {
+    const cat = item.category || 'Otros';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(item);
+  });
+
+  const unchecked = {};
+  const checkedCat = {};
+  Object.entries(byCategory).forEach(([cat, catItems]) => {
+    const u = catItems.filter(i => !i.checked);
+    const c = catItems.filter(i => i.checked);
+    if (u.length) unchecked[cat] = u;
+    if (c.length) checkedCat[cat] = c;
+  });
+
+  const renderCat = (cat, catItems) => `
+    <div class="category-label">${cat}</div>
+    ${catItems.map(item => `
+      <div class="list-item ${item.checked ? 'checked' : ''}" id="item-${item.id}">
+        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem('${item.id}','${listId}',this.checked)">
+        <span class="item-name">${item.ingredient_name}</span>
+        <span class="item-qty">${item.unit || ''}</span>
+      </div>
+    `).join('')}
+  `;
+
+  let html = '<div class="card">';
+  Object.entries(unchecked).forEach(([cat, catItems]) => { html += renderCat(cat, catItems); });
+  if (Object.keys(checkedCat).length) {
+    html += `<div style="margin-top:12px; padding-top:12px; border-top:2px dashed var(--border);"><div style="font-size:11px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">✅ Ya en el carrito</div>`;
+    Object.entries(checkedCat).forEach(([cat, catItems]) => { html += renderCat(cat, catItems); });
+    html += '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function toggleItem(itemId, listId, checked) {
+  await sb.from('shopping_list_items').update({ checked }).eq('id', itemId);
+  loadShoppingList();
+}
+
+// ─── UTILS ───────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+sb.auth.getSession();
+</script>
+</body>
+</html>
