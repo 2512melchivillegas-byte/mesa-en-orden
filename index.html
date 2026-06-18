@@ -559,14 +559,16 @@ function setAuthMsg(msg,isError=false){
   const el=document.getElementById('authMsg');
   el.innerHTML=msg?`<div class="${isError?'msg-error':'msg-success'}">${msg}</div>`:'';
 }
+let _inPasswordRecovery=false;
 sb.auth.onAuthStateChange(async(event,session)=>{
   if(event==='PASSWORD_RECOVERY'){
-    // Mostrar pantalla de nueva contraseña
+    _inPasswordRecovery=true;
     document.getElementById('authWrap').style.display='flex';
     document.getElementById('app').classList.remove('active');
     showResetPassword();
     return;
   }
+  if(_inPasswordRecovery)return; // Ignorar SIGNED_IN durante recovery
   if(session?.user){
     currentUser=session.user;
     await loadProfile();
