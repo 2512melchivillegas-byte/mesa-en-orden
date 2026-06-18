@@ -165,6 +165,15 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <a onclick="showForgotPassword()" style="font-size:13px;color:var(--coral);cursor:pointer;font-weight:600;">¿Olvidaste tu contraseña?</a>
       </div>
     </div>
+    <div id="authReset" style="display:none">
+      <div style="text-align:center;margin-bottom:1rem;">
+        <div style="font-size:15px;font-weight:700;color:var(--dark-green);">Nueva contraseña</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Introduce tu nueva contraseña</div>
+      </div>
+      <div class="field"><label>Nueva contraseña</label><input type="password" id="resetPass" placeholder="mínimo 6 caracteres"></div>
+      <div class="field"><label>Repetir contraseña</label><input type="password" id="resetPass2" placeholder="repite la contraseña"></div>
+      <button class="btn-primary" onclick="doResetPassword()">Guardar nueva contraseña</button>
+    </div>
     <div id="authForgot" style="display:none">
       <div class="field"><label>Tu email</label><input type="email" id="forgotEmail" placeholder="tu@email.com"></div>
       <button class="btn-primary" onclick="doForgotPassword()">Enviar enlace de recuperación</button>
@@ -528,6 +537,22 @@ async function doJoin(){
   }
 }
 async function doLogout(){await sb.auth.signOut();}
+function showResetPassword(){
+  ['authLogin','authForgot','authRegister','authJoin'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  document.getElementById('authReset').style.display='block';
+  setAuthMsg('Introduce tu nueva contraseña');
+}
+async function doResetPassword(){
+  const p1=document.getElementById('resetPass').value;
+  const p2=document.getElementById('resetPass2').value;
+  if(!p1||p1.length<6){setAuthMsg('Mínimo 6 caracteres',true);return;}
+  if(p1!==p2){setAuthMsg('Las contraseñas no coinciden',true);return;}
+  const{error}=await sb.auth.updateUser({password:p1});
+  if(error){setAuthMsg(error.message,true);return;}
+  setAuthMsg('✅ Contraseña actualizada. Entrando...');
+  document.getElementById('authReset').style.display='none';
+  setTimeout(()=>location.reload(),1500);
+}
 function showForgotPassword(){document.getElementById('authLogin').style.display='none';document.getElementById('authForgot').style.display='block';setAuthMsg('');}
 async function doForgotPassword(){const email=document.getElementById('forgotEmail').value.trim();if(!email){setAuthMsg('Introduce tu email',true);return;}const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://mesa-en-orden.vercel.app'});if(error)setAuthMsg(error.message,true);else setAuthMsg('✅ Email enviado. Revisa tu bandeja.');}
 function setAuthMsg(msg,isError=false){
@@ -535,6 +560,13 @@ function setAuthMsg(msg,isError=false){
   el.innerHTML=msg?`<div class="${isError?'msg-error':'msg-success'}">${msg}</div>`:'';
 }
 sb.auth.onAuthStateChange(async(event,session)=>{
+  if(event==='PASSWORD_RECOVERY'){
+    // Mostrar pantalla de nueva contraseña
+    document.getElementById('authWrap').style.display='flex';
+    document.getElementById('app').classList.remove('active');
+    showResetPassword();
+    return;
+  }
   if(session?.user){
     currentUser=session.user;
     await loadProfile();
