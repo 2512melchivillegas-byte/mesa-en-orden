@@ -158,8 +158,13 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <button class="auth-tab" onclick="showAuthTab('join',this)">Unirse</button>
     </div>
     <div id="authLogin">
-      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="tu@email.com"></div>
-      <div class="field"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+      <div class="field"><label>Usuario</label><input type="text" id="loginUser" placeholder="Tu nombre de usuario" autocomplete="username"></div>
+      <div class="field"><label>Contraseña</label>
+        <div style="position:relative;">
+          <input type="password" id="loginPass" placeholder="••••••••" style="width:100%;padding-right:36px;" autocomplete="current-password">
+          <button type="button" onclick="togglePass('loginPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1;">👁️</button>
+        </div>
+      </div>
       <button class="btn-primary" onclick="doLogin()">Entrar</button>
       <div style="text-align:center;margin-top:0.75rem;">
         <a onclick="showForgotPassword()" style="font-size:13px;color:var(--coral);cursor:pointer;font-weight:600;">¿Olvidaste tu contraseña?</a>
@@ -184,14 +189,24 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div id="authRegister" style="display:none">
       <div class="field"><label>Tu nombre</label><input type="text" id="regName" placeholder="Ej: Luis"></div>
       <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="tu@email.com"></div>
-      <div class="field"><label>Contraseña</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres"></div>
+      <div class="field"><label>Contraseña</label>
+        <div style="position:relative;">
+          <input type="password" id="regPass" placeholder="mínimo 6 caracteres" style="width:100%;padding-right:36px;" autocomplete="new-password">
+          <button type="button" onclick="togglePass('regPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1;">👁️</button>
+        </div>
+      </div>
       <div class="field"><label>Nombre del hogar</label><input type="text" id="regHousehold" placeholder="Ej: Familia Villegas"></div>
       <button class="btn-primary" onclick="doRegister()">Crear cuenta y hogar</button>
     </div>
     <div id="authJoin" style="display:none">
       <div class="field"><label>Tu nombre</label><input type="text" id="joinName" placeholder="Ej: Melissa"></div>
       <div class="field"><label>Email</label><input type="email" id="joinEmail" placeholder="tu@email.com"></div>
-      <div class="field"><label>Contraseña</label><input type="password" id="joinPass" placeholder="mínimo 6 caracteres"></div>
+      <div class="field"><label>Contraseña</label>
+        <div style="position:relative;">
+          <input type="password" id="joinPass" placeholder="mínimo 6 caracteres" style="width:100%;padding-right:36px;" autocomplete="new-password">
+          <button type="button" onclick="togglePass('joinPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1;">👁️</button>
+        </div>
+      </div>
       <div class="field"><label>Código de hogar</label><input type="text" id="joinCode" placeholder="Código de 6 letras" style="text-transform:uppercase;letter-spacing:3px;"></div>
       <button class="btn-primary" onclick="doJoin()">Unirse al hogar</button>
     </div>
@@ -496,13 +511,23 @@ function showAuthTab(tab,btn){
   document.getElementById('authJoin').style.display=tab==='join'?'block':'none';
   setAuthMsg('');
 }
+function togglePass(inputId,btn){
+  const inp=document.getElementById(inputId);
+  if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
+  btn.textContent=inp.type==='password'?'👁️':'🙈';
+}
 function generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase();}
 async function doLogin(){
-  const email=document.getElementById('loginEmail').value.trim();
+  const userInput=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
   setAuthMsg('');
+  if(!userInput||!pass){setAuthMsg('Completa todos los campos',true);return;}
+  // Buscar email en profiles por nombre de usuario
+  const{data:profiles}=await sb.from('profiles').select('email').ilike('name',userInput).limit(1);
+  const email=profiles?.[0]?.email||userInput; // fallback: tratar como email directo
   const{error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error)setAuthMsg('Email o contraseña incorrectos',true);
+  if(error)setAuthMsg('Usuario o contraseña incorrectos',true);
 }
 async function doRegister(){
   const name=document.getElementById('regName').value.trim();
