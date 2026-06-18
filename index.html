@@ -521,13 +521,24 @@ function generateCode(){return Math.random().toString(36).substring(2,8).toUpper
 async function doLogin(){
   const userInput=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
-  setAuthMsg('');
+  setAuthMsg('Entrando...');
   if(!userInput||!pass){setAuthMsg('Completa todos los campos',true);return;}
-  // Buscar email en profiles por nombre de usuario
-  const{data:profiles}=await sb.from('profiles').select('email').ilike('name',userInput).limit(1);
-  const email=profiles?.[0]?.email||userInput; // fallback: tratar como email directo
+  let email=userInput;
+  // Si no contiene @, buscar email en profiles por nombre
+  if(!userInput.includes('@')){
+    const{data:profiles,error:pe}=await sb.from('profiles').select('email').ilike('name',userInput).limit(1);
+    if(profiles&&profiles.length>0&&profiles[0].email){
+      email=profiles[0].email;
+    } else {
+      // Intentar también búsqueda exacta por email en auth usando el nombre como email parcial
+      setAuthMsg('Usuario no encontrado. Prueba con tu email completo.',true);
+      return;
+    }
+  }
   const{error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error)setAuthMsg('Usuario o contraseña incorrectos',true);
+  if(error){
+    setAuthMsg('Contraseña incorrecta. Si la cambiaste hace poco, espera un momento y vuelve a intentarlo.',true);
+  }
 }
 async function doRegister(){
   const name=document.getElementById('regName').value.trim();
