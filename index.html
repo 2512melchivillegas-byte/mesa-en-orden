@@ -804,23 +804,29 @@ async function loadHistorial(){
   const{data}=await q;
   const el=document.getElementById('historialContent');
   if(!data?.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>Sin historial aún</p></div>';return;}
-  el.innerHTML=data.map(menu=>{
+  // Guardar referencia para acceso por índice (evita problemas con tildes en onclick)
+  window._historialData=data;
+  el.innerHTML=data.map((menu,idx)=>{
     const dateStr=new Date(menu.week_start).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
     const proteins=menu.protein_distribution?Object.values(menu.protein_distribution).join(', '):'';
     return `<div class="card">
       <div class="card-header">
         <div><div class="card-title">Semana del ${dateStr}</div><div class="text-muted mt-1">${proteins}</div></div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn btn-outline btn-sm" onclick="viewHistorialMenu('${menu.id}','${dateStr}')">👁️ Ver</button>
+          <button class="btn btn-outline btn-sm" onclick="viewHistorialMenu(${idx})">👁️ Ver</button>
           <span style="font-size:11px;padding:3px 8px;background:var(--beige);border-radius:20px;color:var(--text-muted);">✓</span>
         </div>
       </div>
     </div>`;
   }).join('');
 }
-async function viewHistorialMenu(menuId,dateStr){
+async function viewHistorialMenu(idx){
+  const menuObj=window._historialData?.[idx];
+  if(!menuObj)return;
+  const menuId=menuObj.id;
+  const dateStr=new Date(menuObj.week_start).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
   // Cargar días del menú con sus recetas
-  const{data:days,error}=await sb.from('weekly_menu_days').select('*,recipes(name,protein_type)').eq('menu_id',menuId).order('day_of_week');
+  const{data:days,error}=await sb.from('weekly_menu_days').select('*,recipes(name,protein_type)').eq('menu_id',menuId);
   const modal=document.getElementById('historialMenuModal');
   document.getElementById('historialMenuTitle').textContent='Menú semana del '+dateStr;
   const content=document.getElementById('historialMenuContent');
