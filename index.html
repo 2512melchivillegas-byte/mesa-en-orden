@@ -359,6 +359,24 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   </div>
 </div>
 
+<!-- Modal Añadir receta al menú -->
+<div class="modal-overlay" id="addToMenuModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="addToMenuTitle">Añadir al menú</div>
+      <button class="btn-icon" onclick="closeModal('addToMenuModal')">✕</button>
+    </div>
+    <div class="form-row" style="margin-top:0.75rem;">
+      <label>Día</label>
+      <select id="addToMenuDay" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:var(--white);"></select>
+    </div>
+    <div class="modal-footer" style="margin-top:1rem;">
+      <button class="btn btn-outline" onclick="closeModal('addToMenuModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmAddToMenu()">✓ Añadir</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal ficha receta (solo lectura) -->
 <div class="modal-overlay" id="recipeViewModal">
   <div class="modal" style="padding:0;display:flex;flex-direction:column;max-height:85vh;">
@@ -578,6 +596,7 @@ function renderRecipes(){
       </div>
       <div class="card-actions">
         ${r.video_url?`<a href="${r.video_url}" target="_blank" class="btn-icon">🎬</a>`:''}
+        <button class="btn btn-outline btn-sm" onclick="openAddToMenu('${r.id}')" style="font-size:11px;padding:3px 8px;">📅 Añadir al menú</button>
         <button class="btn-icon" onclick="editRecipe('${r.id}')">✏️</button>
         <button class="btn-icon" onclick="deleteRecipe('${r.id}')">🗑️</button>
       </div>
@@ -593,6 +612,33 @@ function openAddRecipe(){
   ['rName','rNotes','rVideo'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';
   document.getElementById('recipeModal').classList.add('open');
+}
+let _addToMenuRecipeId=null;
+function openAddToMenu(recipeId){
+  const r=recipes.find(x=>x.id===recipeId);if(!r)return;
+  _addToMenuRecipeId=recipeId;
+  document.getElementById('addToMenuTitle').textContent='📅 Añadir "'+r.name+'" al menú';
+  const days=getWeekDays();
+  const sel=document.getElementById('addToMenuDay');
+  if(!days.length){alert('Primero configura la semana en Menú y genera al menos un día.');return;}
+  sel.innerHTML=days.map(d=>`<option value="${d}">${d}</option>`).join('');
+  document.getElementById('addToMenuModal').classList.add('open');
+}
+function confirmAddToMenu(){
+  const r=recipes.find(x=>x.id===_addToMenuRecipeId);if(!r)return;
+  const day=document.getElementById('addToMenuDay').value;
+  if(!currentMenu[day])currentMenu[day]={adulto:null,bebe:null,protein:r.protein_type||null,locked:false};
+  const tab=r.category==='bebe'?'bebe':'adulto';
+  currentMenu[day][tab]=r;
+  if(r.protein_type)currentMenu[day].protein=r.protein_type;
+  // Si cambio adulto sincroniza Emma
+  if(tab==='adulto'&&r.protein_type){
+    const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type);
+    if(bp.length&&!currentMenu[day].bebe)currentMenu[day].bebe=bp[Math.floor(Math.random()*bp.length)];
+  }
+  document.getElementById('plannerActions').style.display='block';
+  closeModal('addToMenuModal');
+  showToast('Receta añadida al menú 📅 — revisa en Menú');
 }
 function viewRecipeByName(name){
   const r=recipes.find(x=>x.name===name);
