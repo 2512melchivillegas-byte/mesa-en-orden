@@ -628,6 +628,7 @@ function confirmAddToMenu(){
   const r=recipes.find(x=>x.id===_addToMenuRecipeId);if(!r)return;
   const day=document.getElementById('addToMenuDay').value;
   if(!currentMenu[day])currentMenu[day]={adulto:null,bebe:null,protein:r.protein_type||null,locked:false};
+  currentMenu[day].locked=true; // bloquear para que Generar lo respete
   const tab=r.category==='bebe'?'bebe':'adulto';
   currentMenu[day][tab]=r;
   if(r.protein_type)currentMenu[day].protein=r.protein_type;
@@ -638,7 +639,7 @@ function confirmAddToMenu(){
   }
   document.getElementById('plannerActions').style.display='block';
   closeModal('addToMenuModal');
-  showToast('Receta añadida al menú 📅 — revisa en Menú');
+  showToast('Receta fijada en '+day+' 🔒 — Generar respetará este día');
 }
 function viewRecipeByName(name){
   const r=recipes.find(x=>x.name===name);
