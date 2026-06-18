@@ -1070,7 +1070,22 @@ async function saveBudget(){
 // UTILS
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
-sb.auth.getSession();
+// Detectar recovery por hash en URL (Supabase pone #access_token=...&type=recovery)
+(async()=>{
+  const hash=window.location.hash;
+  if(hash.includes('type=recovery')){
+    _inPasswordRecovery=true;
+    // Dejar que Supabase procese el token del hash
+    const{data,error}=await sb.auth.getSession();
+    document.getElementById('authWrap').style.display='flex';
+    document.getElementById('app').classList.remove('active');
+    showResetPassword();
+    // Limpiar hash de la URL sin recargar
+    history.replaceState(null,'',window.location.pathname);
+  } else {
+    sb.auth.getSession();
+  }
+})();
 </script>
 </body>
 </html>
