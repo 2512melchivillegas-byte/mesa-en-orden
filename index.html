@@ -521,23 +521,32 @@ function generateCode(){return Math.random().toString(36).substring(2,8).toUpper
 async function doLogin(){
   const userInput=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
-  setAuthMsg('Entrando...');
+  setAuthMsg('');
   if(!userInput||!pass){setAuthMsg('Completa todos los campos',true);return;}
-  let email=userInput;
-  // Si no contiene @, buscar email en profiles por nombre
-  if(!userInput.includes('@')){
-    const{data:profiles,error:pe}=await sb.from('profiles').select('email').ilike('name',userInput).limit(1);
-    if(profiles&&profiles.length>0&&profiles[0].email){
-      email=profiles[0].email;
-    } else {
-      // Intentar también búsqueda exacta por email en auth usando el nombre como email parcial
-      setAuthMsg('Usuario no encontrado. Prueba con tu email completo.',true);
-      return;
-    }
+  // Si tiene @ tratar como email directo; si no, construir email desde nombre buscando en auth
+  // Primero intentar como email directo (si escribieron el email)
+  if(userInput.includes('@')){
+    const{error}=await sb.auth.signInWithPassword({email:userInput,password:pass});
+    if(!error)return;
+    setAuthMsg('Email o contraseña incorrectos',true);
+    return;
   }
-  const{error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){
-    setAuthMsg('Contraseña incorrecta. Si la cambiaste hace poco, espera un momento y vuelve a intentarlo.',true);
+  // Sin @: buscar en profiles con timeout corto
+  setAuthMsg('Buscando usuario...');
+  try{
+    const ctrl=new AbortController();
+    const timeout=setTimeout(()=>ctrl.abort(),4000);
+    const{data:profiles}=await sb.from('profiles').select('email').ilike('name',userInput).limit(1).abortSignal(ctrl.signal);
+    clearTimeout(timeout);
+    if(profiles&&profiles[0]?.email){
+      const{error}=await sb.auth.signInWithPassword({email:profiles[0].email,password:pass});
+      if(error)setAuthMsg('Contraseña incorrecta',true);
+      else setAuthMsg('');
+    }else{
+      setAuthMsg('Usuario no encontrado. Prueba con tu email completo.',true);
+    }
+  }catch(e){
+    setAuthMsg('Error de conexión. Prueba con tu email completo.',true);
   }
 }
 async function doRegister(){
