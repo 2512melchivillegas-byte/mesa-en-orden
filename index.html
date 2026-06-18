@@ -83,6 +83,8 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .search-box { position:relative; margin-bottom:1rem; }
 .search-box input { width:100%; padding:9px 11px 9px 36px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:14px; outline:none; background:var(--white); font-family:inherit; }
 .search-box input:focus { border-color:var(--sage); }
+.search-box .clear-btn { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:14px; color:var(--text-muted); padding:2px 4px; display:none; line-height:1; }
+.search-box input:not(:placeholder-shown) ~ .clear-btn { display:block; }
 .search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:14px; }
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:flex-start; justify-content:center; padding:1rem; overflow-y:auto; }
 .modal-overlay.open { display:flex; }
@@ -206,7 +208,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <button class="tab active" onclick="switchRecipeTab('adulto',this)">🧑 Adultos</button>
         <button class="tab" onclick="switchRecipeTab('bebe',this)">👶 Emma</button>
       </div>
-      <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="recipeSearch" placeholder="Buscar receta..." oninput="renderRecipes()"></div>
+      <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="recipeSearch" placeholder="Buscar receta..." oninput="renderRecipes()"><button class="clear-btn" onclick="clearSearch('recipeSearch',renderRecipes)">✕</button></div>
       <div class="filters">
         <button class="filter-btn active" onclick="filterProtein('',this)">Todas</button>
         <button class="filter-btn" onclick="filterProtein('pollo',this)">🍗 Pollo</button>
@@ -271,6 +273,25 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <span class="budget-limit" id="budgetLimit">/ 170€</span>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="budgetProgress" style="width:0%"></div></div>
+      </div>
+      <!-- Buscador y filtro -->
+      <div id="shopControls" style="display:none;flex-direction:column;gap:6px;margin-bottom:0.75rem;">
+        <div class="search-box" style="margin-bottom:0;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="shopSearchInput" placeholder="Buscar producto..." oninput="onShopSearch(this.value)">
+          <button class="clear-btn" onclick="clearSearch('shopSearchInput',()=>onShopSearch(''))">✕</button>
+        </div>
+        <div style="overflow-x:auto;white-space:nowrap;padding-bottom:2px;">
+          <button class="filter-btn active" onclick="onShopFilter('',this)" style="font-size:12px;padding:4px 10px;">Todas</button>
+          <button class="filter-btn" onclick="onShopFilter('Panadería',this)" style="font-size:12px;padding:4px 10px;">🍞</button>
+          <button class="filter-btn" onclick="onShopFilter('Lácteos',this)" style="font-size:12px;padding:4px 10px;">🥛</button>
+          <button class="filter-btn" onclick="onShopFilter('Proteína',this)" style="font-size:12px;padding:4px 10px;">🥩</button>
+          <button class="filter-btn" onclick="onShopFilter('Frutas',this)" style="font-size:12px;padding:4px 10px;">🍎</button>
+          <button class="filter-btn" onclick="onShopFilter('Verduras',this)" style="font-size:12px;padding:4px 10px;">🥦</button>
+          <button class="filter-btn" onclick="onShopFilter('Limpieza',this)" style="font-size:12px;padding:4px 10px;">🧹</button>
+          <button class="filter-btn" onclick="onShopFilter('Aseo personal',this)" style="font-size:12px;padding:4px 10px;">🧴</button>
+          <button class="filter-btn" onclick="onShopFilter('Otros',this)" style="font-size:12px;padding:4px 10px;">📦</button>
+        </div>
       </div>
       <div id="shoppingContent"><div class="empty"><div class="empty-icon">🛒</div><p>Confirma un menú para generar la lista</p></div></div>
     </div>
@@ -429,12 +450,12 @@ let changingDay=null,changingTab=null;
 let weekBudget=170;
 const ALL_DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const BASICOS_FIJOS=[
-  {name:'Leche',qty:'2 cajas ×6',cat:'Básicos'},
+  {name:'Leche',qty:'2 cajas ×6',cat:'Lácteos'},
   {name:'Queso de Burgos',qty:'×3',cat:'Lácteos'},
   {name:'Queso en lonchas',qty:'×3',cat:'Lácteos'},
-  {name:'Jamón',qty:'×1',cat:'Charcutería'},
+  {name:'Jamón',qty:'×1',cat:'Proteína'},
   {name:'Queso rallado',qty:'×2',cat:'Lácteos'},
-  {name:'Huevos',qty:'1 docena',cat:'Frescos'},
+  {name:'Huevos',qty:'1 docena',cat:'Proteína'},
   {name:'Pan de molde',qty:'×1',cat:'Panadería'},
   {name:'Tortillas de trigo',qty:'×1',cat:'Panadería'},
 ];
@@ -752,8 +773,22 @@ async function generateShoppingList(menuId,hhId){
   const{data:list}=await sb.from('shopping_lists').insert({menu_id:menuId,user_id:currentUser.id,household_id:hhId}).select().single();
   if(!list)return;currentListId=list.id;
   const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
-  const items=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
-  if(items.length)await sb.from('shopping_list_items').insert(items);
+  const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  // Ingredientes de recetas — deduplicados (Emma + adulto misma línea)
+  const menuRecipes=Object.values(currentMenu).flatMap(slot=>[slot.adulto,slot.bebe].filter(Boolean));
+  const ingMap={};
+  menuRecipes.forEach(r=>{
+    if(!r.ingredients_list)return;
+    r.ingredients_list.split('\n').forEach(line=>{
+      const t=line.trim();if(!t)return;
+      const key=t.toLowerCase();
+      if(!ingMap[key])ingMap[key]={list_id:list.id,ingredient_name:t,unit:'',category:'Otros',checked:false};
+    });
+  });
+  const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
+  const recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
+  const allItems=[...basicItems,...recipeItems];
+  if(allItems.length)await sb.from('shopping_list_items').insert(allItems);
 }
 async function loadShoppingList(){
   if(!currentUser)return;
@@ -765,39 +800,85 @@ async function loadShoppingList(){
   const{data:items}=await sb.from('shopping_list_items').select('*').eq('list_id',lists[0].id).order('category').order('ingredient_name');
   renderShoppingList(items||[]);
 }
+let _shopSearch='';
+let _shopFilter='';
+function clearSearch(inputId,callback){
+  const el=document.getElementById(inputId);
+  if(el){el.value='';el.focus();}
+  if(callback)callback('');
+}
+function onShopSearch(v){_shopSearch=v.toLowerCase();renderCurrentList();}
+function onShopFilter(cat,btn){_shopFilter=cat;document.querySelectorAll('#shopControls .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderCurrentList();}
+let _lastShopItems=[];
+function renderCurrentList(){renderShoppingList(_lastShopItems);}
+function extractQtyNum(unit){
+  if(!unit)return 1;
+  const m=unit.match(/×(\d+)/);if(m)return parseInt(m[1]);
+  const m2=unit.match(/^(\d+)/);if(m2)return parseInt(m2[1]);
+  return 1;
+}
 function renderShoppingList(items){
+  _lastShopItems=items;
   const el=document.getElementById('shoppingContent');
+  document.getElementById('shopControls').style.display='flex';
   if(!items.length){el.innerHTML='<div class="empty"><div class="empty-icon">🛒</div><p>Lista vacía</p></div>';return;}
-  const totalPrice=items.filter(i=>i.checked&&i.price).reduce((s,i)=>s+Number(i.price),0);
+  // Precio x cantidad
+  function calcTotal(item){
+    if(!item.price)return 0;
+    const p=parseFloat(item.price)||0;
+    const q=item.qty_count!=null?parseInt(item.qty_count):extractQtyNum(item.unit||'');
+    return p*q;
+  }
+  const checkedItems=items.filter(i=>i.checked);
+  const totalPrice=checkedItems.reduce((s,i)=>s+calcTotal(i),0);
   const pct=Math.min(100,Math.round((totalPrice/weekBudget)*100));
   document.getElementById('budgetBar').style.display='block';
   document.getElementById('budgetTotal').textContent=totalPrice.toFixed(2)+'€';
   document.getElementById('budgetLimit').textContent='/ '+weekBudget+'€';
   const fill=document.getElementById('budgetProgress');fill.style.width=pct+'%';
   fill.className='progress-fill'+(pct>100?' over':pct>80?' warning':'');
-  const byCategory={};items.forEach(item=>{const cat=item.category||'Otros';if(!byCategory[cat])byCategory[cat]=[];byCategory[cat].push(item);});
+  // Filtros
+  let filtered=items;
+  if(_shopSearch)filtered=filtered.filter(i=>i.ingredient_name.toLowerCase().includes(_shopSearch));
+  if(_shopFilter)filtered=filtered.filter(i=>(i.category||'Otros')===_shopFilter);
+  const CATS=['Panadería','Lácteos','Proteína','Frutas','Verduras','Limpieza','Aseo personal','Otros'];
+  const byCategory={};
+  filtered.forEach(item=>{const cat=item.category||'Otros';if(!byCategory[cat])byCategory[cat]=[];byCategory[cat].push(item);});
   const unchecked={},checkedCat={};
   Object.entries(byCategory).forEach(([cat,catItems])=>{
     const u=catItems.filter(i=>!i.checked);const c=catItems.filter(i=>i.checked);
     if(u.length)unchecked[cat]=u;if(c.length)checkedCat[cat]=c;
   });
-  const renderCat=(cat,catItems)=>`<div class="category-label">${cat}</div>${catItems.map(item=>`
-    <div class="list-item ${item.checked?'checked':''}" id="item-${item.id}">
+  const renderItem=(item)=>{
+    const q=item.qty_count!=null?parseInt(item.qty_count):extractQtyNum(item.unit||'');
+    const total=item.price?(parseFloat(item.price)*q).toFixed(2)+'€':'';
+    return `<div class="list-item ${item.checked?'checked':''}" id="item-${item.id}">
       <input type="checkbox" ${item.checked?'checked':''} onchange="toggleItem('${item.id}',this.checked)">
       <span class="item-name">${item.ingredient_name}</span>
-      <span class="item-qty">${item.unit||''}</span>
-      <input class="price-input" type="number" step="0.01" placeholder="€" value="${item.price||''}" onchange="updatePrice('${item.id}',this.value)">
+      <input class="price-input" type="number" min="1" step="1" value="${q}" onchange="updateQtyCount('${item.id}',this.value)" style="width:44px;text-align:center;" title="Cantidad">
+      <input class="price-input" type="number" step="0.01" placeholder="€/u" value="${item.price||''}" onchange="updatePrice('${item.id}',this.value)" style="width:60px;" title="Precio unitario">
+      <span style="font-size:11px;color:var(--text-muted);min-width:40px;text-align:right;">${total}</span>
       <button class="btn-icon" style="font-size:12px;" onclick="deleteListItem('${item.id}')">✕</button>
-    </div>`).join('')}`;
-  let html='<div class="card">';
-  Object.entries(unchecked).forEach(([cat,catItems])=>{html+=renderCat(cat,catItems);});
+    </div>`;
+  };
+  const renderCat=(cat,catItems)=>`<div class="category-label">${cat}</div>${catItems.map(renderItem).join('')}`;
+  let h='<div class="card">';
+  CATS.forEach(cat=>{if(unchecked[cat])h+=renderCat(cat,unchecked[cat]);});
+  Object.keys(unchecked).filter(c=>!CATS.includes(c)).forEach(c=>{h+=renderCat(c,unchecked[c]);});
   if(Object.keys(checkedCat).length){
-    html+=`<div style="margin-top:12px;padding-top:12px;border-top:2px dashed var(--border);"><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">✅ En el carrito</div>`;
-    Object.entries(checkedCat).forEach(([cat,catItems])=>{html+=renderCat(cat,catItems);});html+='</div>';
+    h+=`<div style="margin-top:12px;padding-top:12px;border-top:2px dashed var(--border);"><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">✅ En el carrito</div>`;
+    CATS.forEach(cat=>{if(checkedCat[cat])h+=renderCat(cat,checkedCat[cat]);});
+    Object.keys(checkedCat).filter(c=>!CATS.includes(c)).forEach(c=>{h+=renderCat(c,checkedCat[c]);});
+    h+='</div>';
   }
-  html+='</div>';el.innerHTML=html;
+  h+='</div>';el.innerHTML=h;
 }
 async function toggleItem(itemId,checked){await sb.from('shopping_list_items').update({checked}).eq('id',itemId);loadShoppingList();}
+async function updateQtyCount(itemId,count){
+  const n=parseInt(count)||1;
+  await sb.from('shopping_list_items').update({qty_count:n}).eq('id',itemId);
+  loadShoppingList();
+}
 async function updatePrice(itemId,price){await sb.from('shopping_list_items').update({price:price?parseFloat(price):null}).eq('id',itemId);loadShoppingList();}
 async function deleteListItem(itemId){await sb.from('shopping_list_items').delete().eq('id',itemId);loadShoppingList();}
 function addManualItem(){document.getElementById('manualItemModal').classList.add('open');}
