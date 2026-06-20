@@ -269,6 +269,14 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <button class="week-day-btn" onclick="selectWeekLength(5,this)">5 días</button>
           <button class="week-day-btn" onclick="selectWeekLength(6,this)">6 días</button>
           <button class="week-day-btn selected" onclick="selectWeekLength(7,this)">7 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(8,this)">8 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(9,this)">9 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(10,this)">10 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(11,this)">11 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(12,this)">12 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(13,this)">13 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(14,this)">14 días</button>
+          <button class="week-day-btn" onclick="selectWeekLength(15,this)">15 días</button>
         </div>
       </div>
       <div class="tabs">
@@ -490,7 +498,15 @@ let weekStart='Lunes',weekLength=7;
 let swapMode=false,swapDay1=null;
 let changingDay=null,changingTab=null;
 let weekBudget=170;
-const ALL_DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const DOW_SUN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+function toISODate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function isISODate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
+function dayLabel(dateStr){
+  if(!isISODate(dateStr))return dateStr; // compatibilidad con historial antiguo (nombres de día)
+  const[y,m,d]=dateStr.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  return DOW_SUN[dt.getDay()]+' '+String(d).padStart(2,'0')+'/'+String(m).padStart(2,'0');
+}
 const BASICOS_FIJOS=[
   {name:'Leche',qty:'2 cajas ×6',cat:'Lácteos'},
   {name:'Queso de Burgos',qty:'×3',cat:'Lácteos'},
@@ -501,7 +517,15 @@ const BASICOS_FIJOS=[
   {name:'Pan de molde',qty:'×1',cat:'Panadería'},
   {name:'Tortillas de trigo',qty:'×1',cat:'Panadería'},
 ];
-function getWeekDays(){const s=ALL_DAYS.indexOf(weekStart);const d=[];for(let i=0;i<weekLength;i++)d.push(ALL_DAYS[(s+i)%7]);return d;}
+function getWeekDays(){
+  const start=new Date(getNextWeekday(weekStart)+'T00:00:00');
+  const d=[];
+  for(let i=0;i<weekLength;i++){
+    const dt=new Date(start);dt.setDate(start.getDate()+i);
+    d.push(toISODate(dt));
+  }
+  return d;
+}
 
 // AUTH
 function showAuthTab(tab,btn){
@@ -700,7 +724,7 @@ function openAddToMenu(recipeId){
   const days=getWeekDays();
   const sel=document.getElementById('addToMenuDay');
   if(!days.length){alert('Primero configura la semana en Menú y genera al menos un día.');return;}
-  sel.innerHTML=days.map(d=>`<option value="${d}">${d}</option>`).join('');
+  sel.innerHTML=days.map(d=>`<option value="${d}">${dayLabel(d)}</option>`).join('');
   document.getElementById('addToMenuModal').classList.add('open');
 }
 function confirmAddToMenu(){
@@ -807,12 +831,12 @@ function resetMenu(){
 function renderPlanner(){
   if(!Object.keys(currentMenu).length)return;
   const el=document.getElementById('plannerContent');
-  el.innerHTML=Object.keys(currentMenu).map(day=>{
+  el.innerHTML=Object.keys(currentMenu).sort().map(day=>{
     const slot=currentMenu[day];const rec=slot[activePlanTab];
     const isSwap=swapMode&&swapDay1===day;
     return `<div class="day-card ${isSwap?'swap-selected':''} ${slot.locked?'day-locked':''}" id="daycard-${day}">
       <div class="day-header">
-        <span>${day}</span>
+        <span>${dayLabel(day)}</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;opacity:0.8;">${eP(slot.protein)} ${slot.protein}</span>
           <button class="btn-icon" style="color:white;font-size:13px;" onclick="toggleLock('${day}')" title="${slot.locked?'Desfijar':'Fijar'}">${slot.locked?'🔒':'🔓'}</button>
@@ -888,10 +912,9 @@ async function confirmMenu(){
   setTimeout(()=>document.querySelector('[onclick*="pageCompra"]').click(),800);
 }
 function getNextWeekday(dayName){
-  const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const target=days.indexOf(dayName);const today=new Date();const current=today.getDay();
+  const target=DOW_SUN.indexOf(dayName);const today=new Date();const current=today.getDay();
   let diff=target-current;if(diff<=0)diff+=7;
-  const next=new Date(today);next.setDate(today.getDate()+diff);return next.toISOString().split('T')[0];
+  const next=new Date(today);next.setDate(today.getDate()+diff);return toISODate(next);
 }
 
 // LISTA DE COMPRA
@@ -1103,17 +1126,23 @@ async function viewHistorialMenu(idx){
     if(!byDay[row.day_of_week])byDay[row.day_of_week]={};
     byDay[row.day_of_week][row.person_type]=row.recipes;
   });
-  // Orden real: calculado a partir de la fecha de inicio de semana, no del orden en que se fijaron los días
-  const[y,m,d]=menuObj.week_start.split('-').map(Number);
-  const startDow=new Date(y,m-1,d).getDay(); // 0=Domingo
-  const DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const weekOrder=[];for(let i=0;i<7;i++)weekOrder.push(DOW[(startDow+i)%7]);
-  const orderedDays=weekOrder.filter(d=>byDay[d]);
+  // Orden real: si los días son fechas (formato nuevo) se ordenan cronológicamente sin límite de 7;
+  // si son nombres de día (historial antiguo) se ordena a partir de la fecha de inicio de semana.
+  const dayKeys=Object.keys(byDay);
+  let orderedDays;
+  if(dayKeys.every(isISODate)){
+    orderedDays=dayKeys.sort();
+  }else{
+    const[y,m,d]=menuObj.week_start.split('-').map(Number);
+    const startDow=new Date(y,m-1,d).getDay(); // 0=Domingo
+    const weekOrder=[];for(let i=0;i<7;i++)weekOrder.push(DOW_SUN[(startDow+i)%7]);
+    orderedDays=weekOrder.filter(d=>byDay[d]);
+  }
   content.innerHTML=orderedDays.map(day=>{
     const slot=byDay[day];
     const adulto=slot.adulto;const bebe=slot.bebe;
     return `<div class="day-card" style="margin-bottom:10px;">
-      <div class="day-header"><span>${day}</span>${adulto?.protein_type?`<span style="font-size:11px;opacity:0.8;">${eP(adulto.protein_type)} ${adulto.protein_type}</span>`:''}
+      <div class="day-header"><span>${dayLabel(day)}</span>${adulto?.protein_type?`<span style="font-size:11px;opacity:0.8;">${eP(adulto.protein_type)} ${adulto.protein_type}</span>`:''}
       </div>
       <div class="day-body">
         ${adulto?`<div class="meal-row"><span style="font-size:12px;color:var(--text-muted);">🧑 Adultos</span><span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${adulto.name.replace(/'/g,"\'")}')">${adulto.name}</span></div>`:''}
