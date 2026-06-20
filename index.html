@@ -456,7 +456,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row"><label>Producto *</label><input type="text" id="pantryName" placeholder="Ej: Arroz"></div>
     <div class="form-grid">
       <div class="form-row"><label>Cantidad</label><input type="number" id="pantryQty" placeholder="1"></div>
-      <div class="form-row"><label>Unidad</label><input type="text" id="pantryUnit" placeholder="kg, unidades..."></div>
+      <div class="form-row"><label>Unidad</label><select id="pantryUnit"><option value="unidades">unidades</option><option value="kg">kg</option><option value="g">g</option><option value="l">l</option><option value="ml">ml</option><option value="paquetes">paquetes</option><option value="docena">docena</option><option value="cajas">cajas</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pantryModal')">Cancelar</button>
@@ -1038,7 +1038,7 @@ function renderPantry(){
 }
 function openAddPantry(){
   editingPantryId=null;document.getElementById('pantryModalTitle').textContent='Añadir a la despensa';
-  document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='';
+  document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='unidades';
   document.getElementById('pantryModal').classList.add('open');
 }
 function editPantryItem(id){
@@ -1046,7 +1046,9 @@ function editPantryItem(id){
   editingPantryId=id;document.getElementById('pantryModalTitle').textContent='Editar producto';
   document.getElementById('pantryName').value=item.ingredient_name;
   document.getElementById('pantryQty').value=item.quantity||'';
-  document.getElementById('pantryUnit').value=item.unit||'';
+  const unitSel=document.getElementById('pantryUnit');
+  unitSel.value=item.unit||'unidades';
+  if(unitSel.value!==(item.unit||'unidades'))unitSel.value='unidades';
   document.getElementById('pantryModal').classList.add('open');
 }
 async function savePantryItem(){
@@ -1055,7 +1057,7 @@ async function savePantryItem(){
   if(editingPantryId){await sb.from('pantry_items').update(data).eq('id',editingPantryId);showToast('Producto actualizado ✅');}
   else{await sb.from('pantry_items').insert({...data,household_id:currentHousehold.id,category:'Otros'});showToast('Añadido a la despensa ✅');}
   closeModal('pantryModal');editingPantryId=null;
-  document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='';
+  document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='unidades';
   await loadPantry();renderPantry();
 }
 async function deletePantryItem(id){await sb.from('pantry_items').delete().eq('id',id);await loadPantry();renderPantry();}
