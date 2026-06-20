@@ -1101,12 +1101,12 @@ async function viewHistorialMenu(idx){
     if(!byDay[row.day_of_week])byDay[row.day_of_week]={};
     byDay[row.day_of_week][row.person_type]=row.recipes;
   });
-  // Orden real: usar protein_distribution del menú (keys en orden de inserción)
-  const ALL_D=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-  const protDist=menuObj.protein_distribution||{};
-  const savedOrder=Object.keys(protDist).filter(d=>byDay[d]);
-  // Si no hay protein_distribution, caer en orden natural
-  const orderedDays=savedOrder.length?savedOrder:ALL_D.filter(d=>byDay[d]);
+  // Orden real: calculado a partir de la fecha de inicio de semana, no del orden en que se fijaron los días
+  const[y,m,d]=menuObj.week_start.split('-').map(Number);
+  const startDow=new Date(y,m-1,d).getDay(); // 0=Domingo
+  const DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const weekOrder=[];for(let i=0;i<7;i++)weekOrder.push(DOW[(startDow+i)%7]);
+  const orderedDays=weekOrder.filter(d=>byDay[d]);
   content.innerHTML=orderedDays.map(day=>{
     const slot=byDay[day];
     const adulto=slot.adulto;const bebe=slot.bebe;
