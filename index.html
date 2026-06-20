@@ -441,7 +441,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row"><label>Producto *</label><input type="text" id="manualName" placeholder="Ej: Papel higiénico"></div>
     <div class="form-grid">
       <div class="form-row"><label>Cantidad</label><input type="text" id="manualQty" placeholder="Ej: ×2"></div>
-      <div class="form-row"><label>Categoría</label><select id="manualCat"><option value="Básicos">Básicos</option><option value="Frescos">Frescos</option><option value="Lácteos">Lácteos</option><option value="Charcutería">Charcutería</option><option value="Panadería">Panadería</option><option value="Proteína">Proteína</option><option value="Verduras">Verduras</option><option value="Limpieza">Limpieza</option><option value="Higiene">Higiene</option><option value="Otros">Otros</option></select></div>
+      <div class="form-row"><label>Categoría</label><select id="manualCat"><option value="Panadería">Panadería</option><option value="Lácteos">Lácteos</option><option value="Proteína">Proteína</option><option value="Frutas">Frutas</option><option value="Verduras">Verduras</option><option value="Limpieza">Limpieza</option><option value="Aseo personal">Aseo personal</option><option value="Otros" selected>Otros</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('manualItemModal')">Cancelar</button>
@@ -452,7 +452,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="pantryModal">
   <div class="modal">
-    <div class="modal-title">Añadir a la despensa</div>
+    <div class="modal-title" id="pantryModalTitle">Añadir a la despensa</div>
     <div class="form-row"><label>Producto *</label><input type="text" id="pantryName" placeholder="Ej: Arroz"></div>
     <div class="form-grid">
       <div class="form-row"><label>Cantidad</label><input type="number" id="pantryQty" placeholder="1"></div>
@@ -483,7 +483,7 @@ const SUPA_URL='https://tmfrpkjxdtthevbzikpz.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZnJwa2p4ZHR0aGV2Ynppa3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwOTg1MjAsImV4cCI6MjA5NjY3NDUyMH0.8ogU2wVaR5A9AbLO-pFb7YnWBI28WinkOo05HbFXL14';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 let currentUser=null,currentProfile=null,currentHousehold=null;
-let recipes=[],pantryItems=[];
+let recipes=[],pantryItems=[],editingPantryId=null;
 let activeRecipeTab='adulto',activePlanTab='adulto',activeProtein='';
 let editingRecipeId=null,currentMenu={},currentListId=null;
 let weekStart='Lunes',weekLength=7;
@@ -765,7 +765,7 @@ function generateMenu(){
   // Detectar qué días ya están fijados (ambas tabs)
   const fixedDays=new Set(days.filter(d=>currentMenu[d]&&(currentMenu[d].adulto||currentMenu[d].bebe)&&currentMenu[d].locked));
   const emptyDays=days.filter(d=>!fixedDays.has(d));
-  if(!emptyDays.length){showToast('Todos los días ya están fijados');return;}
+  if(!emptyDays.length){renderPlanner();document.getElementById('plannerActions').style.display='block';showToast('Todos los días ya están fijados ✅');return;}
   // Proteínas ya usadas en días fijados
   const usedProteins={};
   days.forEach(d=>{if(currentMenu[d]?.locked&&currentMenu[d].protein)usedProteins[d]=currentMenu[d].protein;});
@@ -1010,6 +1010,8 @@ async function deleteListItem(itemId){await sb.from('shopping_list_items').delet
 function addManualItem(){document.getElementById('manualItemModal').classList.add('open');}
 async function saveManualItem(){
   const name=document.getElementById('manualName').value.trim();if(!name||!currentListId)return;
+  const exists=_lastShopItems.some(i=>i.ingredient_name.trim().toLowerCase()===name.toLowerCase());
+  if(exists){alert('"'+name+'" ya está en la lista de compra.');return;}
   await sb.from('shopping_list_items').insert({list_id:currentListId,ingredient_name:name,unit:document.getElementById('manualQty').value.trim()||null,category:document.getElementById('manualCat').value,checked:false});
   closeModal('manualItemModal');document.getElementById('manualName').value='';document.getElementById('manualQty').value='';
   loadShoppingList();showToast('Producto añadido ✅');
@@ -1032,14 +1034,29 @@ async function loadPantry(){
 function renderPantry(){
   const el=document.getElementById('pantryList');
   if(!pantryItems.length){el.innerHTML='<div class="empty"><div class="empty-icon">🏠</div><p>La despensa está vacía</p></div>';return;}
-  el.innerHTML='<div class="card">'+pantryItems.map(item=>`<div class="pantry-item"><span>${item.ingredient_name}${item.quantity?' — '+item.quantity+(item.unit||''):''}</span><button class="btn-icon" onclick="deletePantryItem('${item.id}')">🗑️</button></div>`).join('')+'</div>';
+  el.innerHTML='<div class="card">'+pantryItems.map(item=>`<div class="pantry-item"><span>${item.ingredient_name}${item.quantity?' — '+item.quantity+' '+(item.unit||''):''}</span><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="editPantryItem('${item.id}')">✏️</button><button class="btn-icon" onclick="deletePantryItem('${item.id}')">🗑️</button></div></div>`).join('')+'</div>';
 }
-function openAddPantry(){document.getElementById('pantryModal').classList.add('open');}
+function openAddPantry(){
+  editingPantryId=null;document.getElementById('pantryModalTitle').textContent='Añadir a la despensa';
+  document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='';
+  document.getElementById('pantryModal').classList.add('open');
+}
+function editPantryItem(id){
+  const item=pantryItems.find(p=>p.id===id);if(!item)return;
+  editingPantryId=id;document.getElementById('pantryModalTitle').textContent='Editar producto';
+  document.getElementById('pantryName').value=item.ingredient_name;
+  document.getElementById('pantryQty').value=item.quantity||'';
+  document.getElementById('pantryUnit').value=item.unit||'';
+  document.getElementById('pantryModal').classList.add('open');
+}
 async function savePantryItem(){
   const name=document.getElementById('pantryName').value.trim();if(!name||!currentHousehold?.id)return;
-  await sb.from('pantry_items').insert({household_id:currentHousehold.id,ingredient_name:name,quantity:document.getElementById('pantryQty').value||null,unit:document.getElementById('pantryUnit').value||null,category:'Otros'});
-  closeModal('pantryModal');document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='';
-  await loadPantry();renderPantry();showToast('Añadido a la despensa ✅');
+  const data={ingredient_name:name,quantity:document.getElementById('pantryQty').value||null,unit:document.getElementById('pantryUnit').value||null};
+  if(editingPantryId){await sb.from('pantry_items').update(data).eq('id',editingPantryId);showToast('Producto actualizado ✅');}
+  else{await sb.from('pantry_items').insert({...data,household_id:currentHousehold.id,category:'Otros'});showToast('Añadido a la despensa ✅');}
+  closeModal('pantryModal');editingPantryId=null;
+  document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='';
+  await loadPantry();renderPantry();
 }
 async function deletePantryItem(id){await sb.from('pantry_items').delete().eq('id',id);await loadPantry();renderPantry();}
 
