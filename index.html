@@ -445,6 +445,19 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   </div>
 </div>
 
+<!-- Modal categorías desconocidas al guardar receta -->
+<div class="modal-overlay" id="unknownIngrModal">
+  <div class="modal">
+    <div class="modal-title">Categorías de ingredientes</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">Asigna la categoría a estos ingredientes nuevos — quedará guardado para siempre:</p>
+    <div id="unknownIngrList"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('unknownIngrModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmUnknownIngredients()">Guardar y continuar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="manualItemModal">
   <div class="modal">
     <div class="modal-title">Añadir producto</div>
@@ -494,6 +507,8 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 let currentUser=null,currentProfile=null,currentHousehold=null;
 let recipes=[],pantryItems=[],editingPantryId=null;
+let ingredientDict={}; // nombre_lowercase → categoría
+let _pendingRecipeData=null; // datos de receta esperando confirmar categorías
 let activeRecipeTab='adulto',activePlanTab='adulto',activeProtein='';
 let editingRecipeId=null,currentMenu={},currentListId=null;
 let weekStart='Lunes',weekLength=7;
@@ -651,9 +666,36 @@ async function initApp(){
   }else{
     document.getElementById('topbarName').textContent='Melissa';
   }
-  loadRecipes();loadPantry();
+  loadRecipes();loadPantry();loadIngredientDict();
 }
 initApp();
+
+// DICCIONARIO DE INGREDIENTES
+const CAT_OPTIONS=['Panadería','Lácteos','Proteína','Frutas','Verduras','Limpieza','Aseo personal','Otros'];
+function catSelect(id,val='Otros'){
+  return `<select id="${id}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;">${CAT_OPTIONS.map(c=>`<option${c===val?' selected':''}>${c}</option>`).join('')}</select>`;
+}
+async function loadIngredientDict(){
+  const{data}=await sb.from('ingredients').select('name,category');
+  if(data)data.forEach(i=>{if(i.name&&i.category)ingredientDict[i.name.toLowerCase().trim()]=i.category;});
+}
+function getCategoryForIngredient(name){
+  const key=name.toLowerCase().trim();
+  if(ingredientDict[key])return ingredientDict[key];
+  // Palabras clave de fallback
+  const kw=[
+    {k:['pollo','pechuga','muslo','pavo'],c:'Proteína'},
+    {k:['carne','lomo','cerdo','ternera','cordero','salchicha','chorizo','bacon','jamón','baicon','salmón','merluza','atún','bacalao','gambas','pescado'],c:'Proteína'},
+    {k:['leche','queso','yogur','nata','mantequilla','crema'],c:'Lácteos'},
+    {k:['tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz'],c:'Verduras'},
+    {k:['manzana','naranja','limón','plátano','banana','fresa','melón','sandía','uva','pera','melocotón','fruta','kiwi','piña','mango'],c:'Frutas'},
+    {k:['pan','tortilla','galleta','harina','cereales'],c:'Panadería'},
+    {k:['jabón','detergente','suavizante','limpiahogar','bayeta','esponja','fregasuelos','cristales','baño','lejía'],c:'Limpieza'},
+    {k:['champú','gel','pasta dientes','desodorante','compresas','pañal','cepillo'],c:'Aseo personal'},
+  ];
+  for(const{k,c}of kw){if(k.some(w=>key.includes(w)))return c;}
+  return null; // desconocido
+}
 async function loadProfile(){
   const{data:p}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
   currentProfile=p;
@@ -783,6 +825,35 @@ function editRecipe(id){
 async function saveRecipe(){
   const name=document.getElementById('rName').value.trim();if(!name){alert('El nombre es obligatorio');return;}
   const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida']};
+  // Verificar si hay ingredientes desconocidos
+  const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const unknown=lines.filter(l=>!getCategoryForIngredient(l));
+  if(unknown.length){
+    _pendingRecipeData=data;
+    const el=document.getElementById('unknownIngrList');
+    el.innerHTML=unknown.map((ing,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="flex:1;font-size:13px;font-weight:600;">${ing}</span>
+        ${catSelect('unkcat_'+i,'Otros')}
+      </div>`).join('');
+    el.dataset.unknowns=JSON.stringify(unknown);
+    document.getElementById('unknownIngrModal').classList.add('open');
+    return;
+  }
+  await doSaveRecipe(data);
+}
+async function confirmUnknownIngredients(){
+  const unknowns=JSON.parse(document.getElementById('unknownIngrList').dataset.unknowns||'[]');
+  const toSave=unknowns.map((ing,i)=>{
+    const cat=document.getElementById('unkcat_'+i)?.value||'Otros';
+    ingredientDict[ing.toLowerCase().trim()]=cat;
+    return{name:ing,category:cat,active:true};
+  });
+  if(toSave.length)await sb.from('ingredients').upsert(toSave,{onConflict:'name'});
+  closeModal('unknownIngrModal');
+  if(_pendingRecipeData){await doSaveRecipe(_pendingRecipeData);_pendingRecipeData=null;}
+}
+async function doSaveRecipe(data){
   if(editingRecipeId){await sb.from('recipes').update(data).eq('id',editingRecipeId);showToast('Receta actualizada ✅');}
   else{await sb.from('recipes').insert(data);showToast('Receta añadida ✅');}
   closeModal('recipeModal');loadRecipes();
@@ -942,7 +1013,10 @@ async function generateShoppingList(menuId,hhId){
     r.ingredients_list.split('\n').forEach(line=>{
       const t=line.trim();if(!t)return;
       const key=t.toLowerCase();
-      if(!ingMap[key])ingMap[key]={list_id:list.id,ingredient_name:t,unit:'',category:'Otros',checked:false};
+      if(!ingMap[key]){
+        const cat=getCategoryForIngredient(t)||'Otros';
+        ingMap[key]={list_id:list.id,ingredient_name:t,unit:'',category:cat,checked:false};
+      }
     });
   });
   const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
