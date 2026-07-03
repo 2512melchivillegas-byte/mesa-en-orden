@@ -642,12 +642,14 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   if(_inPasswordRecovery)return; // Ignorar SIGNED_IN durante recovery
   if(session?.user){
     currentUser=session.user;
+    setAuthMsg('');
     await loadProfile();
     document.getElementById('authWrap').style.display='none';
     document.getElementById('app').classList.add('active');
     loadRecipes();loadPantry();
-  }else{
+  } else {
     currentUser=null;currentProfile=null;currentHousehold=null;
+    setAuthMsg('');
     document.getElementById('app').classList.remove('active');
     document.getElementById('authWrap').style.display='flex';
   }
