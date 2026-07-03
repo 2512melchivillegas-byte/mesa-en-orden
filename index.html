@@ -78,8 +78,9 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .tab { flex:1; padding:9px; background:var(--white); border:none; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-muted); font-family:inherit; }
 .tab.active { background:var(--dark-green); color:white; }
 .filters { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; }
-.filter-btn { padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--white); cursor:pointer; color:var(--text-muted); font-family:inherit; }
+.filter-btn { padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--white); cursor:pointer; color:var(--text-muted); font-family:inherit; position:relative; }
 .filter-btn.active { background:var(--dark-green); color:white; border-color:var(--dark-green); }
+.filter-btn[title]:hover::after { content:attr(title); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.75); color:white; font-size:11px; white-space:nowrap; padding:3px 7px; border-radius:6px; pointer-events:none; z-index:100; font-weight:500; }
 .search-box { position:relative; margin-bottom:1rem; }
 .search-box input { width:100%; padding:9px 11px 9px 36px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:14px; outline:none; background:var(--white); font-family:inherit; }
 .search-box input:focus { border-color:var(--sage); }
@@ -314,18 +315,18 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <button class="clear-btn" onclick="clearSearch('shopSearchInput',()=>onShopSearch(''))">✕</button>
         </div>
         <div style="overflow-x:auto;white-space:nowrap;padding-bottom:2px;">
-          <button class="filter-btn active" onclick="onShopFilter('',this)" style="font-size:12px;padding:4px 10px;">Todas</button>
-          <button class="filter-btn" onclick="onShopFilter('Frescos',this)" style="font-size:12px;padding:4px 10px;">🍊</button>
-          <button class="filter-btn" onclick="onShopFilter('Carnicería y pescadería',this)" style="font-size:12px;padding:4px 10px;">🥩</button>
-          <button class="filter-btn" onclick="onShopFilter('Refrigerados',this)" style="font-size:12px;padding:4px 10px;">🧀</button>
-          <button class="filter-btn" onclick="onShopFilter('Congelados',this)" style="font-size:12px;padding:4px 10px;">❄️</button>
-          <button class="filter-btn" onclick="onShopFilter('Desayuno y panadería',this)" style="font-size:12px;padding:4px 10px;">🥣</button>
-          <button class="filter-btn" onclick="onShopFilter('Despensa',this)" style="font-size:12px;padding:4px 10px;">🫙</button>
-          <button class="filter-btn" onclick="onShopFilter('Bebidas',this)" style="font-size:12px;padding:4px 10px;">🥤</button>
-          <button class="filter-btn" onclick="onShopFilter('Snacks',this)" style="font-size:12px;padding:4px 10px;">🍿</button>
-          <button class="filter-btn" onclick="onShopFilter('Bebé',this)" style="font-size:12px;padding:4px 10px;">🍼</button>
-          <button class="filter-btn" onclick="onShopFilter('Higiene personal',this)" style="font-size:12px;padding:4px 10px;">🧴</button>
-          <button class="filter-btn" onclick="onShopFilter('Limpieza',this)" style="font-size:12px;padding:4px 10px;">🧹</button>
+          <button class="filter-btn active" onclick="onShopFilter('',this)" style="font-size:12px;padding:4px 10px;" title="Todas">Todas</button>
+          <button class="filter-btn" onclick="onShopFilter('Frescos',this)" style="font-size:12px;padding:4px 10px;" title="Frescos">🍊</button>
+          <button class="filter-btn" onclick="onShopFilter('Carnicería y pescadería',this)" style="font-size:12px;padding:4px 10px;" title="Carnicería y pescadería">🥩</button>
+          <button class="filter-btn" onclick="onShopFilter('Refrigerados',this)" style="font-size:12px;padding:4px 10px;" title="Refrigerados">🧀</button>
+          <button class="filter-btn" onclick="onShopFilter('Congelados',this)" style="font-size:12px;padding:4px 10px;" title="Congelados">❄️</button>
+          <button class="filter-btn" onclick="onShopFilter('Desayuno y panadería',this)" style="font-size:12px;padding:4px 10px;" title="Desayuno y panadería">🥣</button>
+          <button class="filter-btn" onclick="onShopFilter('Despensa',this)" style="font-size:12px;padding:4px 10px;" title="Despensa">🫙</button>
+          <button class="filter-btn" onclick="onShopFilter('Bebidas',this)" style="font-size:12px;padding:4px 10px;" title="Bebidas">🥤</button>
+          <button class="filter-btn" onclick="onShopFilter('Snacks',this)" style="font-size:12px;padding:4px 10px;" title="Snacks">🍿</button>
+          <button class="filter-btn" onclick="onShopFilter('Bebé',this)" style="font-size:12px;padding:4px 10px;" title="Bebé">🍼</button>
+          <button class="filter-btn" onclick="onShopFilter('Higiene personal',this)" style="font-size:12px;padding:4px 10px;" title="Higiene personal">🧴</button>
+          <button class="filter-btn" onclick="onShopFilter('Limpieza',this)" style="font-size:12px;padding:4px 10px;" title="Limpieza">🧹</button>
         </div>
       </div>
       <div id="shoppingContent"><div class="empty"><div class="empty-icon">🛒</div><p>Confirma un menú para generar la lista</p></div></div>
