@@ -331,7 +331,11 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="page" id="pageDespensa">
       <div class="section-header">
         <div class="page-title">Despensa</div>
-        <button class="btn btn-green btn-sm" onclick="openAddPantry()">+ Añadir</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openPlantillaDespensa()">📋 Plantilla</button>
+          <button class="btn btn-outline btn-sm" onclick="resetPantry()">🔄 Reiniciar</button>
+          <button class="btn btn-green btn-sm" onclick="openAddPantry()">+ Añadir</button>
+        </div>
       </div>
       <p class="text-muted" style="margin-bottom:1rem;">Lo que tienes en casa se excluirá de la lista de compra.</p>
       <div id="pantryList"><div class="loading">Cargando...</div></div>
@@ -466,6 +470,19 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   </div>
 </div>
 
+<!-- Modal plantilla despensa -->
+<div class="modal-overlay" id="plantillaModal" style="align-items:flex-start;padding-top:1rem;">
+  <div class="modal" style="max-height:90vh;overflow-y:auto;width:100%;max-width:480px;">
+    <div class="modal-title">📋 Plantilla de despensa</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Pon la cantidad de lo que ya tienes en casa. Lo que dejes vacío no se añade.</p>
+    <div id="plantillaItems"></div>
+    <div class="modal-footer" style="margin-top:1rem;">
+      <button class="btn btn-outline" onclick="closeModal('plantillaModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="savePlantilla()">Guardar despensa</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="pantryModal">
   <div class="modal">
     <div class="modal-title" id="pantryModalTitle">Añadir a la despensa</div>
@@ -525,6 +542,54 @@ const BASICOS_FIJOS=[
   {name:'Pan de molde',qty:'×1',cat:'Panadería'},
   {name:'Tortillas de trigo',qty:'×1',cat:'Panadería'},
 ];
+const PLANTILLA_DESPENSA=[
+  {cat:'Lácteos',items:['Leche','Queso de Burgos','Queso en lonchas','Queso rallado','Queso mozzarella','Mantequilla','Yogur líquido','Yogur de cuchara']},
+  {cat:'Proteína',items:['Jamón','Huevos','Baicon','Atún']},
+  {cat:'Panadería',items:['Pan de molde','Tortillas de trigo','Galletas','Tostadas','Cereales / Kellogg\'s']},
+  {cat:'Otros',items:['Aceite','Sal','Arroz','Espaguetis','Macarrones','Mermelada fresa','Mermelada arándanos','Mermelada melocotón','Café','Manzanilla','Salsa de tomate','Mayonesa','Salsa BBQ','Vinagre de módena','Nata / crema de cocinar']},
+  {cat:'Limpieza',items:['Papel higiénico','Papel de cocina','Papel aluminio','Papel transparente','Jabón ropa color','Jabón ropa blanca','Fairy','Sanytol baños','Sanytol multiusos']},
+  {cat:'Aseo personal',items:['Champú','Protectores','Compresas','Crema de dientes','Enjuague bucal','Desodorante','Jabón de cuerpo','Jabón de manos']},
+];
+function openPlantillaDespensa(){
+  const el=document.getElementById('plantillaItems');
+  // Obtener cantidades actuales de la despensa para prerellenar
+  const existing={};
+  pantryItems.forEach(p=>existing[p.ingredient_name.toLowerCase()]={qty:p.quantity||'',unit:p.unit||''});
+  el.innerHTML=PLANTILLA_DESPENSA.map(group=>`
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:11px;font-weight:700;color:var(--dark-green);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">${group.cat}</div>
+      ${group.items.map(item=>{
+        const ex=existing[item.toLowerCase()]||{};
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="flex:1;font-size:13px;">${item}</span>
+          <input type="text" placeholder="cantidad" value="${ex.qty||''}" data-name="${item}" data-cat="${group.cat}"
+            style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--beige);">
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  document.getElementById('plantillaModal').classList.add('open');
+}
+async function savePlantilla(){
+  if(!currentHousehold?.id)return;
+  const inputs=document.querySelectorAll('#plantillaItems input[data-name]');
+  const toAdd=[];
+  inputs.forEach(inp=>{
+    const qty=inp.value.trim();
+    if(qty){toAdd.push({household_id:currentHousehold.id,ingredient_name:inp.dataset.name,quantity:qty,unit:'',category:inp.dataset.cat});}
+  });
+  // Borrar despensa actual y reemplazar
+  await sb.from('pantry_items').delete().eq('household_id',currentHousehold.id);
+  if(toAdd.length)await sb.from('pantry_items').insert(toAdd);
+  closeModal('plantillaModal');
+  await loadPantry();renderPantry();
+  showToast('✅ Despensa actualizada');
+}
+async function resetPantry(){
+  if(!confirm('¿Vaciar toda la despensa?'))return;
+  await sb.from('pantry_items').delete().eq('household_id',currentHousehold.id);
+  pantryItems=[];renderPantry();
+  showToast('Despensa vaciada 🔄');
+}
 function getWeekDays(){
   const start=new Date(getNextWeekday(weekStart)+'T00:00:00');
   const d=[];
