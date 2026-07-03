@@ -643,11 +643,11 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   if(session?.user){
     currentUser=session.user;
     setAuthMsg('');
-    await loadProfile();
+    try{await loadProfile();}catch(e){console.error('loadProfile error:',e);}
     document.getElementById('authWrap').style.display='none';
     document.getElementById('app').classList.add('active');
     loadRecipes();loadPantry();
-  } else {
+  }else{
     currentUser=null;currentProfile=null;currentHousehold=null;
     setAuthMsg('');
     document.getElementById('app').classList.remove('active');
