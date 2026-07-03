@@ -342,6 +342,11 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div id="historialContent"><div class="loading">Cargando...</div></div>
     </div>
 
+    <div class="page" id="pageFavoritos">
+      <div class="section-header"><div class="page-title">Menús favoritos</div></div>
+      <div id="favoritosContent"><div class="loading">Cargando...</div></div>
+    </div>
+
     <div class="page" id="pageAjustes">
       <div class="page-title" style="margin-bottom:1rem;">Ajustes</div>
       <div class="card">
@@ -369,6 +374,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <button class="nav-item" onclick="showPage('pageCompra',this)"><span class="nav-icon">🛒</span>Compra</button>
     <button class="nav-item" onclick="showPage('pageDespensa',this)"><span class="nav-icon">🏠</span>Despensa</button>
     <button class="nav-item" onclick="showPage('pageHistorial',this)"><span class="nav-icon">📋</span>Historial</button>
+    <button class="nav-item" onclick="showPage('pageFavoritos',this)"><span class="nav-icon">⭐</span>Favoritos</button>
     <button class="nav-item" onclick="showPage('pageAjustes',this)"><span class="nav-icon">⚙️</span>Ajustes</button>
   </nav>
 </div>
@@ -445,19 +451,6 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   </div>
 </div>
 
-<!-- Modal categorías desconocidas al guardar receta -->
-<div class="modal-overlay" id="unknownIngrModal">
-  <div class="modal">
-    <div class="modal-title">Categorías de ingredientes</div>
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">Asigna la categoría a estos ingredientes nuevos — quedará guardado para siempre:</p>
-    <div id="unknownIngrList"></div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('unknownIngrModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="confirmUnknownIngredients()">Guardar y continuar</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="manualItemModal">
   <div class="modal">
     <div class="modal-title">Añadir producto</div>
@@ -507,8 +500,6 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 let currentUser=null,currentProfile=null,currentHousehold=null;
 let recipes=[],pantryItems=[],editingPantryId=null;
-let ingredientDict={}; // nombre_lowercase → categoría
-let _pendingRecipeData=null; // datos de receta esperando confirmar categorías
 let activeRecipeTab='adulto',activePlanTab='adulto',activeProtein='';
 let editingRecipeId=null,currentMenu={},currentListId=null;
 let weekStart='Lunes',weekLength=7;
@@ -666,36 +657,9 @@ async function initApp(){
   }else{
     document.getElementById('topbarName').textContent='Melissa';
   }
-  loadRecipes();loadPantry();loadIngredientDict();
+  loadRecipes();loadPantry();
 }
 initApp();
-
-// DICCIONARIO DE INGREDIENTES
-const CAT_OPTIONS=['Panadería','Lácteos','Proteína','Frutas','Verduras','Limpieza','Aseo personal','Otros'];
-function catSelect(id,val='Otros'){
-  return `<select id="${id}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;">${CAT_OPTIONS.map(c=>`<option${c===val?' selected':''}>${c}</option>`).join('')}</select>`;
-}
-async function loadIngredientDict(){
-  const{data}=await sb.from('ingredients').select('name,category');
-  if(data)data.forEach(i=>{if(i.name&&i.category)ingredientDict[i.name.toLowerCase().trim()]=i.category;});
-}
-function getCategoryForIngredient(name){
-  const key=name.toLowerCase().trim();
-  if(ingredientDict[key])return ingredientDict[key];
-  // Palabras clave de fallback
-  const kw=[
-    {k:['pollo','pechuga','muslo','pavo'],c:'Proteína'},
-    {k:['carne','lomo','cerdo','ternera','cordero','salchicha','chorizo','bacon','jamón','baicon','salmón','merluza','atún','bacalao','gambas','pescado'],c:'Proteína'},
-    {k:['leche','queso','yogur','nata','mantequilla','crema'],c:'Lácteos'},
-    {k:['tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz'],c:'Verduras'},
-    {k:['manzana','naranja','limón','plátano','banana','fresa','melón','sandía','uva','pera','melocotón','fruta','kiwi','piña','mango'],c:'Frutas'},
-    {k:['pan','tortilla','galleta','harina','cereales'],c:'Panadería'},
-    {k:['jabón','detergente','suavizante','limpiahogar','bayeta','esponja','fregasuelos','cristales','baño','lejía'],c:'Limpieza'},
-    {k:['champú','gel','pasta dientes','desodorante','compresas','pañal','cepillo'],c:'Aseo personal'},
-  ];
-  for(const{k,c}of kw){if(k.some(w=>key.includes(w)))return c;}
-  return null; // desconocido
-}
 async function loadProfile(){
   const{data:p}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
   currentProfile=p;
@@ -719,6 +683,7 @@ function showPage(pageId,btn){
   document.getElementById(pageId).classList.add('active');btn.classList.add('active');
   if(pageId==='pageCompra')loadShoppingList();
   if(pageId==='pageHistorial')loadHistorial();
+  if(pageId==='pageFavoritos')loadFavoritos();
   if(pageId==='pageDespensa')renderPantry();
 }
 
@@ -825,35 +790,6 @@ function editRecipe(id){
 async function saveRecipe(){
   const name=document.getElementById('rName').value.trim();if(!name){alert('El nombre es obligatorio');return;}
   const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida']};
-  // Verificar si hay ingredientes desconocidos
-  const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
-  const unknown=lines.filter(l=>!getCategoryForIngredient(l));
-  if(unknown.length){
-    _pendingRecipeData=data;
-    const el=document.getElementById('unknownIngrList');
-    el.innerHTML=unknown.map((ing,i)=>`
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <span style="flex:1;font-size:13px;font-weight:600;">${ing}</span>
-        ${catSelect('unkcat_'+i,'Otros')}
-      </div>`).join('');
-    el.dataset.unknowns=JSON.stringify(unknown);
-    document.getElementById('unknownIngrModal').classList.add('open');
-    return;
-  }
-  await doSaveRecipe(data);
-}
-async function confirmUnknownIngredients(){
-  const unknowns=JSON.parse(document.getElementById('unknownIngrList').dataset.unknowns||'[]');
-  const toSave=unknowns.map((ing,i)=>{
-    const cat=document.getElementById('unkcat_'+i)?.value||'Otros';
-    ingredientDict[ing.toLowerCase().trim()]=cat;
-    return{name:ing,category:cat,active:true};
-  });
-  if(toSave.length)await sb.from('ingredients').upsert(toSave,{onConflict:'name'});
-  closeModal('unknownIngrModal');
-  if(_pendingRecipeData){await doSaveRecipe(_pendingRecipeData);_pendingRecipeData=null;}
-}
-async function doSaveRecipe(data){
   if(editingRecipeId){await sb.from('recipes').update(data).eq('id',editingRecipeId);showToast('Receta actualizada ✅');}
   else{await sb.from('recipes').insert(data);showToast('Receta añadida ✅');}
   closeModal('recipeModal');loadRecipes();
@@ -1013,10 +949,7 @@ async function generateShoppingList(menuId,hhId){
     r.ingredients_list.split('\n').forEach(line=>{
       const t=line.trim();if(!t)return;
       const key=t.toLowerCase();
-      if(!ingMap[key]){
-        const cat=getCategoryForIngredient(t)||'Otros';
-        ingMap[key]={list_id:list.id,ingredient_name:t,unit:'',category:cat,checked:false};
-      }
+      if(!ingMap[key])ingMap[key]={list_id:list.id,ingredient_name:t,unit:'',category:'Otros',checked:false};
     });
   });
   const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
@@ -1183,16 +1116,81 @@ async function loadHistorial(){
   el.innerHTML=data.map((menu,idx)=>{
     const dateStr=new Date(menu.week_start).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
     const proteins=menu.protein_distribution?Object.values(menu.protein_distribution).join(', '):'';
+    const star=menu.is_favorite?'⭐':'☆';
     return `<div class="card">
       <div class="card-header">
         <div><div class="card-title">Semana del ${dateStr}</div><div class="text-muted mt-1">${proteins}</div></div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-outline btn-sm" onclick="viewHistorialMenu(${idx})">👁️ Ver</button>
-          <span style="font-size:11px;padding:3px 8px;background:var(--beige);border-radius:20px;color:var(--text-muted);">✓</span>
+          <button class="btn btn-outline btn-sm" onclick="toggleFavorito(${idx})" title="${menu.is_favorite?'Quitar favorito':'Marcar favorito'}">${star}</button>
+          <button class="btn btn-outline btn-sm" onclick="deleteHistorialMenu(${idx})" title="Eliminar">🗑️</button>
         </div>
       </div>
     </div>`;
   }).join('');
+}
+async function toggleFavorito(idx){
+  const menu=window._historialData?.[idx];if(!menu)return;
+  const newVal=!menu.is_favorite;
+  await sb.from('weekly_menus').update({is_favorite:newVal}).eq('id',menu.id);
+  menu.is_favorite=newVal;
+  showToast(newVal?'⭐ Guardado en favoritos':'Eliminado de favoritos');
+  loadHistorial();
+}
+async function deleteHistorialMenu(idx){
+  const menu=window._historialData?.[idx];if(!menu)return;
+  if(!confirm('¿Eliminar este menú del historial?'))return;
+  await sb.from('weekly_menu_days').delete().eq('menu_id',menu.id);
+  await sb.from('shopping_lists').delete().eq('menu_id',menu.id);
+  await sb.from('weekly_menus').delete().eq('id',menu.id);
+  showToast('Menú eliminado 🗑️');
+  loadHistorial();
+}
+async function loadFavoritos(){
+  const el=document.getElementById('favoritosContent');
+  el.innerHTML='<div class="loading">Cargando...</div>';
+  const hhId=currentHousehold?.id;
+  let q=sb.from('weekly_menus').select('*').eq('is_favorite',true).eq('status','confirmed').order('week_start',{ascending:false});
+  if(hhId)q=q.eq('household_id',hhId);
+  const{data}=await q;
+  if(!data?.length){el.innerHTML='<div class="empty"><div class="empty-icon">⭐</div><p>Aún no tienes favoritos.<br>Márcalos desde el Historial.</p></div>';return;}
+  window._favoritosData=data;
+  el.innerHTML=data.map((menu,idx)=>{
+    const dateStr=new Date(menu.week_start).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+    const proteins=menu.protein_distribution?Object.values(menu.protein_distribution).join(', '):'';
+    return `<div class="card">
+      <div class="card-header">
+        <div><div class="card-title">⭐ Semana del ${dateStr}</div><div class="text-muted mt-1">${proteins}</div></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-outline btn-sm" onclick="viewFavoritoMenu(${idx})">👁️ Ver</button>
+          <button class="btn btn-green btn-sm" onclick="usarFavoritoMenu(${idx})">Usar este menú</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function viewFavoritoMenu(idx){
+  const menu=window._favoritosData?.[idx];if(!menu)return;
+  // Reutilizar el mismo modal del historial
+  window._historialData=[menu];
+  viewHistorialMenu(0);
+}
+async function usarFavoritoMenu(idx){
+  const menu=window._favoritosData?.[idx];if(!menu)return;
+  // Cargar días de ese menú en currentMenu
+  const{data:days}=await sb.from('weekly_menu_days').select('*,recipes(*)').eq('menu_id',menu.id);
+  if(!days?.length){showToast('Este menú no tiene recetas guardadas');return;}
+  currentMenu={};
+  days.forEach(d=>{
+    if(!currentMenu[d.day_of_week])currentMenu[d.day_of_week]={adulto:null,bebe:null,protein:null,locked:true};
+    if(d.person_type==='adulto'&&d.recipes)currentMenu[d.day_of_week].adulto=d.recipes;
+    if(d.person_type==='bebe'&&d.recipes)currentMenu[d.day_of_week].bebe=d.recipes;
+  });
+  showToast('✅ Menú cargado en el planificador');
+  // Ir al planificador
+  const btn=document.querySelector('[onclick*="pagePlanificador"]');
+  if(btn)btn.click();
+  setTimeout(()=>{renderPlanner();document.getElementById('plannerActions').style.display='block';},100);
 }
 async function viewHistorialMenu(idx){
   const menuObj=window._historialData?.[idx];
