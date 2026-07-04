@@ -419,7 +419,18 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="form-row"><label>Categoría</label><select id="rCategory"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
       <div class="form-row"><label>Proteína</label><select id="rProtein"><option value="">Sin proteína</option><option value="pollo">🍗 Pollo</option><option value="carne">🥩 Carne</option><option value="cerdo">🐖 Cerdo</option><option value="pescado">🐟 Pescado</option><option value="vegetal">🥦 Vegetal</option><option value="huevo">🥚 Huevo</option></select></div>
     </div>
-    <div class="form-row"><label>Ingredientes <span style="font-weight:400;color:var(--text-muted);font-size:12px;">(uno por línea — se usarán en la lista de compra)</span></label><textarea id="rIngredients" placeholder="Ej:&#10;Pechuga de pollo&#10;Arroz&#10;Limón&#10;Ajo" rows="4"></textarea></div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-size:13px;color:var(--text-muted);font-weight:500;margin-bottom:4px;">Piezas <span style="font-weight:400;font-size:12px;">(opcional — reusa tu biblioteca; si escribes un nombre nuevo, se crea sola)</span></label>
+      <div class="form-grid" style="margin-bottom:12px;">
+        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">🍗 Proteína</label><input type="text" id="rPiezaProteina" list="dlProteina" placeholder="Ej: Carne a la plancha"><datalist id="dlProteina"></datalist></div>
+        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">🌾 Carbohidrato</label><input type="text" id="rPiezaCarbo" list="dlCarbo" placeholder="Ej: Frijoles"><datalist id="dlCarbo"></datalist></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">🥗 Ensalada</label><input type="text" id="rPiezaEnsalada" list="dlEnsalada" placeholder="Ej: Remolacha"><datalist id="dlEnsalada"></datalist></div>
+        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">➕ Otro</label><input type="text" id="rPiezaOtro" list="dlOtro" placeholder="Ej: Plátano frito"><datalist id="dlOtro"></datalist></div>
+      </div>
+    </div>
+    <div class="form-row"><label>Ingredientes base <span style="font-weight:400;color:var(--text-muted);font-size:12px;">(lo que no cubran las piezas de arriba — opcional)</span></label><textarea id="rIngredients" placeholder="Ej:&#10;Caldo&#10;Cebolla&#10;Ajo" rows="4"></textarea></div>
     <div class="form-row"><label>Notas / preparación</label><textarea id="rNotes" placeholder="Pasos, consejos, notas..."></textarea></div>
     <div class="form-row"><label>Link vídeo/reel</label><input type="url" id="rVideo" placeholder="https://..."></div>
     <div class="modal-footer">
@@ -915,7 +926,7 @@ async function initApp(){
   }else{
     document.getElementById('topbarName').textContent='Melissa';
   }
-  loadRecipes();loadPantry();loadIngredientDict();
+  loadRecipes();loadPantry();loadIngredientDict();loadComponents();
 }
 initApp();
 async function loadProfile(){
@@ -1072,6 +1083,24 @@ async function doSaveComponent(data){
   closeModal('componentModal');
   loadComponents();
 }
+async function resolveComponentId(name,role){
+  name=(name||'').trim();
+  if(!name)return null;
+  const existing=components.find(c=>c.role===role&&c.name.toLowerCase()===name.toLowerCase());
+  if(existing)return existing.id;
+  const{data,error}=await sb.from('components').insert({name,role,is_active:true}).select().single();
+  if(error||!data)return null;
+  components.push(data);
+  return data.id;
+}
+function populatePiezaDatalists(){
+  const byRole={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
+  components.forEach(c=>{if(byRole[c.role])byRole[c.role].push(c.name);});
+  document.getElementById('dlProteina').innerHTML=byRole.proteina.map(n=>`<option value="${n}">`).join('');
+  document.getElementById('dlCarbo').innerHTML=byRole.carbohidrato.map(n=>`<option value="${n}">`).join('');
+  document.getElementById('dlEnsalada').innerHTML=byRole.ensalada.map(n=>`<option value="${n}">`).join('');
+  document.getElementById('dlOtro').innerHTML=byRole.otro.map(n=>`<option value="${n}">`).join('');
+}
 async function deleteComponent(id){
   if(!await appConfirm('¿Eliminar esta pieza?'))return;
   await sb.from('components').delete().eq('id',id);
@@ -1098,6 +1127,7 @@ function renderRecipes(){
         <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;">
           ${r.protein_type?`<span class="badge badge-${r.protein_type}">${eP(r.protein_type)} ${r.protein_type}</span>`:''}
           <span class="badge badge-${r.category}">${r.category==='bebe'?'👶 Emma':'🧑 Adultos'}</span>
+          ${(r.protein_component_id||r.carb_component_id||r.ensalada_component_id||r.otro_component_id)?'<span class="badge" style="background:var(--beige);color:var(--sage);">🧩 con piezas</span>':''}
         </div>
       </div>
       <div class="card-actions">
@@ -1115,8 +1145,9 @@ function switchRecipeTab(tab,btn){activeRecipeTab=tab;document.querySelectorAll(
 function filterProtein(protein,btn){activeProtein=protein;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderRecipes();}
 function openAddRecipe(){
   editingRecipeId=null;document.getElementById('recipeModalTitle').textContent='Nueva receta';
-  ['rName','rIngredients','rNotes','rVideo'].forEach(id=>document.getElementById(id).value='');
+  ['rName','rIngredients','rNotes','rVideo','rPiezaProteina','rPiezaCarbo','rPiezaEnsalada','rPiezaOtro'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';
+  populatePiezaDatalists();
   document.getElementById('recipeModal').classList.add('open');
 }
 let _addToMenuRecipeId=null;
@@ -1160,8 +1191,16 @@ function viewRecipe(id){
   document.getElementById('rvMeta').textContent=cat+prot;
   document.getElementById('rvNotes').textContent=r.preparation_notes||'Sin notas de preparación.';
   const rvIng=document.getElementById('rvIngredients');
-  if(r.ingredients_list){
-    rvIng.innerHTML='<strong style="font-size:13px;color:var(--dark-green);">🛒 Ingredientes:</strong><ul style="margin:6px 0 0 16px;padding:0;">'+r.ingredients_list.split('\n').filter(l=>l.trim()).map(l=>`<li>${l.trim()}</li>`).join('')+'</ul>';
+  const pieceLines=[];
+  [['protein_component_id','🍗'],['carb_component_id','🌾'],['ensalada_component_id','🥗'],['otro_component_id','➕']].forEach(([field,icon])=>{
+    if(r[field]){
+      const c=components.find(x=>x.id===r[field]);
+      if(c)pieceLines.push(`${icon} <strong>${c.name}</strong>${c.ingredients_list?': '+c.ingredients_list.split('\n').filter(Boolean).join(', '):''}`);
+    }
+  });
+  const baseLines=(r.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  if(pieceLines.length||baseLines.length){
+    rvIng.innerHTML='<strong style="font-size:13px;color:var(--dark-green);">🛒 Ingredientes:</strong><ul style="margin:6px 0 0 16px;padding:0;">'+pieceLines.map(l=>`<li>${l}</li>`).join('')+baseLines.map(l=>`<li>${l}</li>`).join('')+'</ul>';
     rvIng.style.display='block';
   }else{rvIng.style.display='none';}
   const vw=document.getElementById('rvVideoWrap');
@@ -1175,13 +1214,22 @@ function editRecipe(id){
   editingRecipeId=id;document.getElementById('recipeModalTitle').textContent='Editar receta';
   document.getElementById('rName').value=r.name;document.getElementById('rCategory').value=r.category;
   document.getElementById('rProtein').value=r.protein_type||'';
+  populatePiezaDatalists();
+  document.getElementById('rPiezaProteina').value=components.find(c=>c.id===r.protein_component_id)?.name||'';
+  document.getElementById('rPiezaCarbo').value=components.find(c=>c.id===r.carb_component_id)?.name||'';
+  document.getElementById('rPiezaEnsalada').value=components.find(c=>c.id===r.ensalada_component_id)?.name||'';
+  document.getElementById('rPiezaOtro').value=components.find(c=>c.id===r.otro_component_id)?.name||'';
   document.getElementById('rIngredients').value=r.ingredients_list||'';
   document.getElementById('rNotes').value=r.preparation_notes||'';
   document.getElementById('rVideo').value=r.video_url||'';document.getElementById('recipeModal').classList.add('open');
 }
 async function saveRecipe(){
   const name=document.getElementById('rName').value.trim();if(!name){alert('El nombre es obligatorio');return;}
-  const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida']};
+  const proteinCompId=await resolveComponentId(document.getElementById('rPiezaProteina').value,'proteina');
+  const carbCompId=await resolveComponentId(document.getElementById('rPiezaCarbo').value,'carbohidrato');
+  const ensaladaCompId=await resolveComponentId(document.getElementById('rPiezaEnsalada').value,'ensalada');
+  const otroCompId=await resolveComponentId(document.getElementById('rPiezaOtro').value,'otro');
+  const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida'],protein_component_id:proteinCompId,carb_component_id:carbCompId,ensalada_component_id:ensaladaCompId,otro_component_id:otroCompId};
   const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
   const unknown=lines.filter(l=>!getCategoryForIngredient(l));
   if(unknown.length){
