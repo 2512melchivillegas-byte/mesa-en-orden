@@ -232,23 +232,43 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="page active" id="pageRecetas">
       <div class="section-header">
         <div class="page-title">Recetario</div>
-        <button class="btn btn-green btn-sm" onclick="openAddRecipe()">+ Añadir</button>
+        <button class="btn btn-green btn-sm" id="recetarioAddBtn" onclick="openAddRecipe()">+ Añadir</button>
       </div>
-      <div class="tabs">
-        <button class="tab active" onclick="switchRecipeTab('adulto',this)">🧑 Adultos</button>
-        <button class="tab" onclick="switchRecipeTab('bebe',this)">👶 Emma</button>
+      <div class="tabs" style="margin-bottom:0.85rem;">
+        <button class="tab active" id="viewTabRecetas" onclick="switchRecetarioView('recetas')">📖 Recetas</button>
+        <button class="tab" id="viewTabPiezas" onclick="switchRecetarioView('piezas')">🧩 Piezas</button>
       </div>
-      <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="recipeSearch" placeholder="Buscar receta..." oninput="renderRecipes()"><button class="clear-btn" onclick="clearSearch('recipeSearch',renderRecipes)">✕</button></div>
-      <div class="filters">
-        <button class="filter-btn active" onclick="filterProtein('',this)">Todas</button>
-        <button class="filter-btn" onclick="filterProtein('pollo',this)">🍗 Pollo</button>
-        <button class="filter-btn" onclick="filterProtein('carne',this)">🥩 Carne</button>
-        <button class="filter-btn" onclick="filterProtein('cerdo',this)">🐖 Cerdo</button>
-        <button class="filter-btn" onclick="filterProtein('pescado',this)">🐟 Pescado</button>
-        <button class="filter-btn" onclick="filterProtein('vegetal',this)">🥦 Vegetal</button>
-        <button class="filter-btn" onclick="filterProtein('huevo',this)">🥚 Huevo</button>
+
+      <div id="recetasSubview">
+        <div class="tabs">
+          <button class="tab active" onclick="switchRecipeTab('adulto',this)">🧑 Adultos</button>
+          <button class="tab" onclick="switchRecipeTab('bebe',this)">👶 Emma</button>
+        </div>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="recipeSearch" placeholder="Buscar receta..." oninput="renderRecipes()"><button class="clear-btn" onclick="clearSearch('recipeSearch',renderRecipes)">✕</button></div>
+        <div class="filters">
+          <button class="filter-btn active" onclick="filterProtein('',this)">Todas</button>
+          <button class="filter-btn" onclick="filterProtein('pollo',this)">🍗 Pollo</button>
+          <button class="filter-btn" onclick="filterProtein('carne',this)">🥩 Carne</button>
+          <button class="filter-btn" onclick="filterProtein('cerdo',this)">🐖 Cerdo</button>
+          <button class="filter-btn" onclick="filterProtein('pescado',this)">🐟 Pescado</button>
+          <button class="filter-btn" onclick="filterProtein('vegetal',this)">🥦 Vegetal</button>
+          <button class="filter-btn" onclick="filterProtein('huevo',this)">🥚 Huevo</button>
+        </div>
+        <div id="recipesList"><div class="loading">Cargando...</div></div>
       </div>
-      <div id="recipesList"><div class="loading">Cargando...</div></div>
+
+      <div id="piezasSubview" style="display:none;">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:0.75rem;">Piezas reutilizables: úsalas en varias recetas sin repetir ingredientes.</p>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="componentSearch" placeholder="Buscar pieza..." oninput="renderComponents()"><button class="clear-btn" onclick="clearSearch('componentSearch',renderComponents)">✕</button></div>
+        <div class="filters">
+          <button class="filter-btn active" onclick="filterComponentRole('',this)">Todas</button>
+          <button class="filter-btn" onclick="filterComponentRole('proteina',this)">🍗 Proteína</button>
+          <button class="filter-btn" onclick="filterComponentRole('carbohidrato',this)">🌾 Carbohidrato</button>
+          <button class="filter-btn" onclick="filterComponentRole('ensalada',this)">🥗 Ensalada</button>
+          <button class="filter-btn" onclick="filterComponentRole('otro',this)">➕ Otro</button>
+        </div>
+        <div id="componentsList"><div class="loading">Cargando...</div></div>
+      </div>
     </div>
 
     <div class="page" id="pagePlanificador">
@@ -548,6 +568,37 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="modal-footer">
       <button class="btn btn-outline" id="confirmModalCancelBtn">Cancelar</button>
       <button class="btn btn-green" id="confirmModalOkBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="componentModal">
+  <div class="modal">
+    <div class="modal-title" id="componentModalTitle">Nueva pieza</div>
+    <div class="form-row"><label>Nombre *</label><input type="text" id="cName" placeholder="Ej: Pollo a la plancha"></div>
+    <div class="form-row"><label>Tipo de pieza</label>
+      <select id="cRole" onchange="toggleComponentSubtypeField()">
+        <option value="proteina">🍗 Proteína</option>
+        <option value="carbohidrato">🌾 Carbohidrato</option>
+        <option value="ensalada">🥗 Ensalada</option>
+        <option value="otro">➕ Otro</option>
+      </select>
+    </div>
+    <div class="form-row" id="cProteinSubtypeRow"><label>Tipo de proteína</label>
+      <select id="cProteinSubtype">
+        <option value="">Sin especificar</option>
+        <option value="pollo">🍗 Pollo</option>
+        <option value="carne">🥩 Carne</option>
+        <option value="cerdo">🐖 Cerdo</option>
+        <option value="pescado">🐟 Pescado</option>
+        <option value="vegetal">🥦 Vegetal</option>
+        <option value="huevo">🥚 Huevo</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Ingredientes <span style="font-weight:400;color:var(--text-muted);font-size:12px;">(uno por línea, opcional)</span></label><textarea id="cIngredients" placeholder="Ej:&#10;Pechuga de pollo&#10;Ajo&#10;Limón" rows="4"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('componentModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="saveComponent()">Guardar</button>
     </div>
   </div>
 </div>
@@ -916,6 +967,98 @@ function showPage(pageId,btn){
   if(pageId==='pageCompra')loadShoppingList();
   if(pageId==='pageHistorial')loadHistorial();
   if(pageId==='pageDespensa')renderPantry();
+}
+
+// PIEZAS / COMPONENTES REUTILIZABLES
+let components=[],activeComponentRole='',editingComponentId=null;
+const ROLE_LABEL={proteina:'🍗 Proteína',carbohidrato:'🌾 Carbohidrato',ensalada:'🥗 Ensalada',otro:'➕ Otro'};
+function switchRecetarioView(view){
+  document.getElementById('viewTabRecetas').classList.toggle('active',view==='recetas');
+  document.getElementById('viewTabPiezas').classList.toggle('active',view==='piezas');
+  document.getElementById('recetasSubview').style.display=view==='recetas'?'block':'none';
+  document.getElementById('piezasSubview').style.display=view==='piezas'?'block':'none';
+  const btn=document.getElementById('recetarioAddBtn');
+  btn.onclick=view==='recetas'?openAddRecipe:openAddComponent;
+  if(view==='piezas')loadComponents();
+}
+async function loadComponents(){
+  const{data}=await sb.from('components').select('*').order('name');
+  components=data||[];renderComponents();
+}
+function filterComponentRole(role,btn){
+  activeComponentRole=role;
+  btn.parentElement.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderComponents();
+}
+function renderComponents(){
+  const search=(document.getElementById('componentSearch')?.value||'').toLowerCase();
+  let f=components;
+  if(activeComponentRole)f=f.filter(c=>c.role===activeComponentRole);
+  if(search)f=f.filter(c=>c.name.toLowerCase().includes(search));
+  const el=document.getElementById('componentsList');
+  if(!f.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🧩</div><p>No hay piezas. Pulsa <strong>+ Añadir</strong></p></div>`;return;}
+  el.innerHTML=f.map(c=>`<div class="card">
+    <div class="card-header">
+      <div style="flex:1;min-width:0;">
+        <div class="card-title">${c.name}</div>
+        <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;">
+          <span class="badge" style="background:var(--beige);color:var(--dark-green);">${ROLE_LABEL[c.role]||c.role}</span>
+          ${c.protein_subtype?`<span class="badge badge-${c.protein_subtype}">${eP(c.protein_subtype)} ${c.protein_subtype}</span>`:''}
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-icon" onclick="editComponent('${c.id}')">✏️</button>
+        <button class="btn-icon" onclick="deleteComponent('${c.id}')">🗑️</button>
+      </div>
+    </div>
+    ${c.ingredients_list?`<div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.5;">${c.ingredients_list.split('\n').filter(Boolean).join(', ')}</div>`:''}
+  </div>`).join('');
+}
+function toggleComponentSubtypeField(){
+  document.getElementById('cProteinSubtypeRow').style.display=document.getElementById('cRole').value==='proteina'?'block':'none';
+}
+function openAddComponent(){
+  editingComponentId=null;
+  document.getElementById('componentModalTitle').textContent='Nueva pieza';
+  document.getElementById('cName').value='';
+  document.getElementById('cRole').value='proteina';
+  document.getElementById('cProteinSubtype').value='';
+  document.getElementById('cIngredients').value='';
+  toggleComponentSubtypeField();
+  document.getElementById('componentModal').classList.add('open');
+}
+function editComponent(id){
+  const c=components.find(x=>x.id===id);if(!c)return;
+  editingComponentId=id;
+  document.getElementById('componentModalTitle').textContent='Editar pieza';
+  document.getElementById('cName').value=c.name;
+  document.getElementById('cRole').value=c.role;
+  document.getElementById('cProteinSubtype').value=c.protein_subtype||'';
+  document.getElementById('cIngredients').value=c.ingredients_list||'';
+  toggleComponentSubtypeField();
+  document.getElementById('componentModal').classList.add('open');
+}
+async function saveComponent(){
+  const name=document.getElementById('cName').value.trim();
+  if(!name){alert('El nombre es obligatorio');return;}
+  const role=document.getElementById('cRole').value;
+  const data={
+    name,role,
+    protein_subtype:role==='proteina'?(document.getElementById('cProteinSubtype').value||null):null,
+    ingredients_list:document.getElementById('cIngredients').value.trim()||null,
+    is_active:true
+  };
+  if(editingComponentId){await sb.from('components').update(data).eq('id',editingComponentId);showToast('Pieza actualizada ✅');}
+  else{await sb.from('components').insert(data);showToast('Pieza añadida ✅');}
+  closeModal('componentModal');
+  loadComponents();
+}
+async function deleteComponent(id){
+  if(!await appConfirm('¿Eliminar esta pieza?'))return;
+  await sb.from('components').delete().eq('id',id);
+  showToast('Pieza eliminada');
+  loadComponents();
 }
 
 // RECETARIO
