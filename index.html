@@ -1039,6 +1039,7 @@ function editComponent(id){
   toggleComponentSubtypeField();
   document.getElementById('componentModal').classList.add('open');
 }
+let _pendingComponentData=null;
 async function saveComponent(){
   const name=document.getElementById('cName').value.trim();
   if(!name){alert('El nombre es obligatorio');return;}
@@ -1049,6 +1050,23 @@ async function saveComponent(){
     ingredients_list:document.getElementById('cIngredients').value.trim()||null,
     is_active:true
   };
+  const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const unknown=lines.filter(l=>!getCategoryForIngredient(l));
+  if(unknown.length){
+    _pendingComponentData=data;
+    const el=document.getElementById('unknownIngrList');
+    el.innerHTML=unknown.map((ing,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="flex:1;font-size:13px;font-weight:600;">${ing}</span>
+        ${catSelect('unkcat_'+i,'Despensa')}
+      </div>`).join('');
+    el.dataset.unknowns=JSON.stringify(unknown);
+    document.getElementById('unknownIngrModal').classList.add('open');
+    return;
+  }
+  await doSaveComponent(data);
+}
+async function doSaveComponent(data){
   if(editingComponentId){await sb.from('components').update(data).eq('id',editingComponentId);showToast('Pieza actualizada ✅');}
   else{await sb.from('components').insert(data);showToast('Pieza añadida ✅');}
   closeModal('componentModal');
@@ -1190,6 +1208,7 @@ async function confirmUnknownIngredients(){
   if(toSave.length)await sb.from('ingredients').upsert(toSave,{onConflict:'name'});
   closeModal('unknownIngrModal');
   if(_pendingRecipeData){await doSaveRecipe(_pendingRecipeData);_pendingRecipeData=null;}
+  if(_pendingComponentData){await doSaveComponent(_pendingComponentData);_pendingComponentData=null;}
 }
 async function doSaveRecipe(data){
   if(editingRecipeId){await sb.from('recipes').update(data).eq('id',editingRecipeId);showToast('Receta actualizada ✅');}
