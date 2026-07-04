@@ -432,12 +432,12 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div style="margin-bottom:1rem;">
       <label style="display:block;font-size:13px;color:var(--text-muted);font-weight:500;margin-bottom:4px;">Piezas <span style="font-weight:400;font-size:12px;">(opcional — reusa tu biblioteca de la categoría elegida arriba; si escribes un nombre nuevo, se crea sola)</span></label>
       <div class="form-grid" style="margin-bottom:12px;">
-        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🍗 Proteína</label><input type="text" id="rPiezaProteina" placeholder="Ej: Carne a la plancha" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaProteina','proteina')" onfocus="renderPiezaSuggestions('rPiezaProteina','proteina')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaProteina'),150)"><div id="rPiezaProteinaSuggest" class="pieza-suggest" style="display:none;"></div></div>
-        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🌾 Carbohidrato</label><input type="text" id="rPiezaCarbo" placeholder="Ej: Frijoles" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaCarbo','carbohidrato')" onfocus="renderPiezaSuggestions('rPiezaCarbo','carbohidrato')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaCarbo'),150)"><div id="rPiezaCarboSuggest" class="pieza-suggest" style="display:none;"></div></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🍗 Proteína</label><div id="rPiezaProteinaChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div><input type="text" id="rPiezaProteina" placeholder="Escribe y Enter" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaProteina','proteina')" onfocus="renderPiezaSuggestions('rPiezaProteina','proteina')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaProteina'),150)" onkeydown="if(event.key==='Enter'){event.preventDefault();addPiezaChip('proteina');}"><div id="rPiezaProteinaSuggest" class="pieza-suggest" style="display:none;"></div></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🌾 Carbohidrato</label><div id="rPiezaCarboChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div><input type="text" id="rPiezaCarbo" placeholder="Escribe y Enter" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaCarbo','carbohidrato')" onfocus="renderPiezaSuggestions('rPiezaCarbo','carbohidrato')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaCarbo'),150)" onkeydown="if(event.key==='Enter'){event.preventDefault();addPiezaChip('carbohidrato');}"><div id="rPiezaCarboSuggest" class="pieza-suggest" style="display:none;"></div></div>
       </div>
       <div class="form-grid">
-        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🥗 Ensalada</label><input type="text" id="rPiezaEnsalada" placeholder="Ej: Remolacha" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaEnsalada','ensalada')" onfocus="renderPiezaSuggestions('rPiezaEnsalada','ensalada')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaEnsalada'),150)"><div id="rPiezaEnsaladaSuggest" class="pieza-suggest" style="display:none;"></div></div>
-        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">➕ Otro</label><input type="text" id="rPiezaOtro" placeholder="Ej: Plátano frito" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaOtro','otro')" onfocus="renderPiezaSuggestions('rPiezaOtro','otro')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaOtro'),150)"><div id="rPiezaOtroSuggest" class="pieza-suggest" style="display:none;"></div></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🥗 Ensalada</label><div id="rPiezaEnsaladaChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div><input type="text" id="rPiezaEnsalada" placeholder="Escribe y Enter" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaEnsalada','ensalada')" onfocus="renderPiezaSuggestions('rPiezaEnsalada','ensalada')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaEnsalada'),150)" onkeydown="if(event.key==='Enter'){event.preventDefault();addPiezaChip('ensalada');}"><div id="rPiezaEnsaladaSuggest" class="pieza-suggest" style="display:none;"></div></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">➕ Otro</label><div id="rPiezaOtroChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div><input type="text" id="rPiezaOtro" placeholder="Escribe y Enter" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaOtro','otro')" onfocus="renderPiezaSuggestions('rPiezaOtro','otro')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaOtro'),150)" onkeydown="if(event.key==='Enter'){event.preventDefault();addPiezaChip('otro');}"><div id="rPiezaOtroSuggest" class="pieza-suggest" style="display:none;"></div></div>
       </div>
     </div>
     <div class="form-row"><label>Ingredientes base <span style="font-weight:400;color:var(--text-muted);font-size:12px;">(lo que no cubran las piezas de arriba — opcional)</span></label><textarea id="rIngredients" placeholder="Ej:&#10;Caldo&#10;Cebolla&#10;Ajo" rows="4"></textarea></div>
@@ -1116,12 +1116,16 @@ async function resolveComponentId(name,role){
   components.push(data);
   return data.id;
 }
+let pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
+const PIEZA_INPUT_BY_ROLE={proteina:'rPiezaProteina',carbohidrato:'rPiezaCarbo',ensalada:'rPiezaEnsalada',otro:'rPiezaOtro'};
+const PIEZA_CHIPS_BY_ROLE={proteina:'rPiezaProteinaChips',carbohidrato:'rPiezaCarboChips',ensalada:'rPiezaEnsaladaChips',otro:'rPiezaOtroChips'};
 function renderPiezaSuggestions(inputId,role){
   const input=document.getElementById(inputId);
   const box=document.getElementById(inputId+'Suggest');
   const cat=document.getElementById('rCategory')?.value||'adulto';
   const q=normTxt(input.value);
-  const list=components.filter(c=>c.role===role&&(c.category||'adulto')===cat&&(!q||normTxt(c.name).includes(q)));
+  const already=new Set(pendingPieces[role].map(p=>p.id));
+  const list=components.filter(c=>c.role===role&&(c.category||'adulto')===cat&&!already.has(c.id)&&(!q||normTxt(c.name).includes(q)));
   if(!list.length){box.style.display='none';box.innerHTML='';return;}
   box.innerHTML=list.slice(0,8).map(c=>`<div onmousedown="selectPieza('${inputId}','${c.name.replace(/'/g,"\\'")}')">${c.name}</div>`).join('');
   box.style.display='block';
@@ -1130,9 +1134,33 @@ function hidePiezaSuggestions(inputId){
   const box=document.getElementById(inputId+'Suggest');
   if(box)box.style.display='none';
 }
-function selectPieza(inputId,name){
+async function selectPieza(inputId,name){
   document.getElementById(inputId).value=name;
   hidePiezaSuggestions(inputId);
+  const role=Object.keys(PIEZA_INPUT_BY_ROLE).find(r=>PIEZA_INPUT_BY_ROLE[r]===inputId);
+  if(role)await addPiezaChip(role);
+}
+async function addPiezaChip(role){
+  const inputId=PIEZA_INPUT_BY_ROLE[role];
+  const input=document.getElementById(inputId);
+  const name=input.value.trim();
+  if(!name)return;
+  if(pendingPieces[role].some(p=>p.name.toLowerCase()===name.toLowerCase())){input.value='';hidePiezaSuggestions(inputId);return;}
+  const id=await resolveComponentId(name,role);
+  if(!id)return;
+  pendingPieces[role].push({id,name});
+  input.value='';
+  hidePiezaSuggestions(inputId);
+  renderPiezaChips(role);
+}
+function removePiezaChip(role,idx){
+  pendingPieces[role].splice(idx,1);
+  renderPiezaChips(role);
+}
+function renderPiezaChips(role){
+  const el=document.getElementById(PIEZA_CHIPS_BY_ROLE[role]);
+  if(!el)return;
+  el.innerHTML=pendingPieces[role].map((p,i)=>`<span class="badge" style="background:var(--sage);color:white;display:inline-flex;align-items:center;gap:5px;">${p.name}<span onclick="removePiezaChip('${role}',${i})" style="cursor:pointer;font-weight:700;">✕</span></span>`).join('');
 }
 async function deleteComponent(id){
   if(!await appConfirm('¿Eliminar esta pieza?'))return;
@@ -1143,8 +1171,9 @@ async function deleteComponent(id){
 
 // RECETARIO
 async function loadRecipes(){
-  const{data}=await sb.from('recipes').select('*').order('name');
-  recipes=data||[];renderRecipes();
+  const{data}=await sb.from('recipes').select('*, recipe_components(component_id, components(*))').order('name');
+  recipes=(data||[]).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
+  renderRecipes();
 }
 function renderRecipes(){
   const search=(document.getElementById('recipeSearch')?.value||'').toLowerCase();
@@ -1160,7 +1189,7 @@ function renderRecipes(){
         <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;">
           ${r.protein_type?`<span class="badge badge-${r.protein_type}">${eP(r.protein_type)} ${r.protein_type}</span>`:''}
           <span class="badge badge-${r.category}">${r.category==='bebe'?'👶 Emma':'🧑 Adultos'}</span>
-          ${(r.protein_component_id||r.carb_component_id||r.ensalada_component_id||r.otro_component_id)?'<span class="badge" style="background:var(--beige);color:var(--sage);">🧩 con piezas</span>':''}
+          ${(r.pieces&&r.pieces.length)?`<span class="badge" style="background:var(--beige);color:var(--sage);">🧩 ${r.pieces.length} pieza${r.pieces.length>1?'s':''}</span>`:''}
         </div>
       </div>
       <div class="card-actions">
@@ -1180,6 +1209,8 @@ function openAddRecipe(){
   editingRecipeId=null;document.getElementById('recipeModalTitle').textContent='Nueva receta';
   ['rName','rIngredients','rNotes','rVideo','rPiezaProteina','rPiezaCarbo','rPiezaEnsalada','rPiezaOtro'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';
+  pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
+  ['proteina','carbohidrato','ensalada','otro'].forEach(renderPiezaChips);
   document.getElementById('recipeModal').classList.add('open');
 }
 let _addToMenuRecipeId=null;
@@ -1223,13 +1254,8 @@ function viewRecipe(id){
   document.getElementById('rvMeta').textContent=cat+prot;
   document.getElementById('rvNotes').textContent=r.preparation_notes||'Sin notas de preparación.';
   const rvIng=document.getElementById('rvIngredients');
-  const pieceLines=[];
-  [['protein_component_id','🍗'],['carb_component_id','🌾'],['ensalada_component_id','🥗'],['otro_component_id','➕']].forEach(([field,icon])=>{
-    if(r[field]){
-      const c=components.find(x=>x.id===r[field]);
-      if(c)pieceLines.push(`${icon} <strong>${c.name}</strong>${c.ingredients_list?': '+c.ingredients_list.split('\n').filter(Boolean).join(', '):''}`);
-    }
-  });
+  const roleIcon={proteina:'🍗',carbohidrato:'🌾',ensalada:'🥗',otro:'➕'};
+  const pieceLines=(r.pieces||[]).map(c=>`${roleIcon[c.role]||'🧩'} <strong>${c.name}</strong>${c.ingredients_list?': '+c.ingredients_list.split('\n').filter(Boolean).join(', '):''}`);
   const baseLines=(r.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
   if(pieceLines.length||baseLines.length){
     rvIng.innerHTML='<strong style="font-size:13px;color:var(--dark-green);">🛒 Ingredientes:</strong><ul style="margin:6px 0 0 16px;padding:0;">'+pieceLines.map(l=>`<li>${l}</li>`).join('')+baseLines.map(l=>`<li>${l}</li>`).join('')+'</ul>';
@@ -1246,21 +1272,17 @@ function editRecipe(id){
   editingRecipeId=id;document.getElementById('recipeModalTitle').textContent='Editar receta';
   document.getElementById('rName').value=r.name;document.getElementById('rCategory').value=r.category;
   document.getElementById('rProtein').value=r.protein_type||'';
-  document.getElementById('rPiezaProteina').value=components.find(c=>c.id===r.protein_component_id)?.name||'';
-  document.getElementById('rPiezaCarbo').value=components.find(c=>c.id===r.carb_component_id)?.name||'';
-  document.getElementById('rPiezaEnsalada').value=components.find(c=>c.id===r.ensalada_component_id)?.name||'';
-  document.getElementById('rPiezaOtro').value=components.find(c=>c.id===r.otro_component_id)?.name||'';
+  pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
+  (r.pieces||[]).forEach(p=>{if(pendingPieces[p.role])pendingPieces[p.role].push({id:p.id,name:p.name});});
+  ['proteina','carbohidrato','ensalada','otro'].forEach(renderPiezaChips);
+  ['rPiezaProteina','rPiezaCarbo','rPiezaEnsalada','rPiezaOtro'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rIngredients').value=r.ingredients_list||'';
   document.getElementById('rNotes').value=r.preparation_notes||'';
   document.getElementById('rVideo').value=r.video_url||'';document.getElementById('recipeModal').classList.add('open');
 }
 async function saveRecipe(){
   const name=document.getElementById('rName').value.trim();if(!name){alert('El nombre es obligatorio');return;}
-  const proteinCompId=await resolveComponentId(document.getElementById('rPiezaProteina').value,'proteina');
-  const carbCompId=await resolveComponentId(document.getElementById('rPiezaCarbo').value,'carbohidrato');
-  const ensaladaCompId=await resolveComponentId(document.getElementById('rPiezaEnsalada').value,'ensalada');
-  const otroCompId=await resolveComponentId(document.getElementById('rPiezaOtro').value,'otro');
-  const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida'],protein_component_id:proteinCompId,carb_component_id:carbCompId,ensalada_component_id:ensaladaCompId,otro_component_id:otroCompId};
+  const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida']};
   const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
   const unknown=lines.filter(l=>!getCategoryForIngredient(l));
   if(unknown.length){
@@ -1290,8 +1312,14 @@ async function confirmUnknownIngredients(){
   if(_pendingComponentData){await doSaveComponent(_pendingComponentData);_pendingComponentData=null;}
 }
 async function doSaveRecipe(data){
+  let recipeId=editingRecipeId;
   if(editingRecipeId){await sb.from('recipes').update(data).eq('id',editingRecipeId);showToast('Receta actualizada ✅');}
-  else{await sb.from('recipes').insert(data);showToast('Receta añadida ✅');}
+  else{const{data:inserted}=await sb.from('recipes').insert(data).select().single();recipeId=inserted?.id;showToast('Receta añadida ✅');}
+  if(recipeId){
+    await sb.from('recipe_components').delete().eq('recipe_id',recipeId);
+    const allIds=[...pendingPieces.proteina,...pendingPieces.carbohidrato,...pendingPieces.ensalada,...pendingPieces.otro].map(p=>p.id);
+    if(allIds.length)await sb.from('recipe_components').insert(allIds.map(cid=>({recipe_id:recipeId,component_id:cid})));
+  }
   closeModal('recipeModal');loadRecipes();
 }
 async function deleteRecipe(id){if(!await appConfirm('¿Eliminar esta receta?'))return;await sb.from('recipes').delete().eq('id',id);showToast('Receta eliminada');loadRecipes();}
