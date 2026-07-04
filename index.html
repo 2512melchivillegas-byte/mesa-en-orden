@@ -129,6 +129,10 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .meal-empty { color:#ccc; font-style:italic; }
 .recipe-option { padding:8px 10px; background:var(--white); border-radius:var(--radius-sm); margin-bottom:6px; cursor:pointer; font-size:13px; border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
 .recipe-option:hover { border-color:var(--sage); background:var(--beige); }
+.meal-pieces { display:flex; flex-wrap:wrap; gap:4px; padding:0 0 6px; }
+.piece-chip { display:inline-flex; align-items:center; gap:4px; background:var(--beige); color:var(--dark-green); font-size:11px; padding:3px 6px 3px 8px; border-radius:12px; }
+.piece-chip span { cursor:pointer; opacity:0.6; }
+.piece-chip span:hover { opacity:1; }
 .swap-hint { background:var(--coral); color:white; padding:8px 12px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; text-align:center; margin-bottom:0.75rem; display:none; }
 .week-config { background:var(--white); border-radius:var(--radius); padding:1rem; margin-bottom:1rem; border:1px solid var(--border); }
 .week-days { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
@@ -623,6 +627,27 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('componentModal')">Cancelar</button>
       <button class="btn btn-green" onclick="saveComponent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="swapPiezaModal">
+  <div class="modal">
+    <div class="modal-title" id="swapPiezaTitle">Cambiar pieza</div>
+    <div class="search-box" style="margin-bottom:0.75rem;"><span class="search-icon">🔍</span><input type="text" id="swapPiezaSearch" oninput="renderSwapPiezaOptions()" placeholder="Buscar..."></div>
+    <div id="swapPiezaOptions" style="max-height:280px;overflow-y:auto;"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('swapPiezaModal')">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="saveAsRecipeModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">¿Guardar esta combinación?</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">Cambiaste una pieza. Puedes guardar esta combinación como receta nueva para reusarla, o aplicarla solo a esta semana.</p>
+    <div class="form-row"><label>Nombre de la nueva receta</label><input type="text" id="saveAsRecipeName"></div>
+    <div class="modal-footer" style="flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="applySwapOnlyThisWeek()">Solo esta semana</button>
+      <button class="btn btn-green" onclick="confirmSaveAsNewRecipe()">Guardar como nueva</button>
     </div>
   </div>
 </div>
@@ -1374,6 +1399,7 @@ async function resetMenu(){
   document.getElementById('plannerContent').innerHTML='<div class="empty"><div class="empty-icon">📅</div><p>Configura tu semana y pulsa <strong>Generar</strong></p></div>';
   showToast('Menú restablecido 🗑️');
 }
+const ROLE_ICON={proteina:'🍗',carbohidrato:'🌾',ensalada:'🥗',otro:'➕'};
 function renderPlanner(){
   if(!Object.keys(currentMenu).length)return;
   const el=document.getElementById('plannerContent');
@@ -1386,17 +1412,70 @@ function renderPlanner(){
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;opacity:0.8;">${eP(slot.protein)} ${slot.protein}</span>
           <button class="btn-icon" style="color:white;font-size:13px;" onclick="toggleLock('${day}')" title="${slot.locked?'Desfijar':'Fijar'}">${slot.locked?'🔒':'🔓'}</button>
-          <button class="btn-icon" style="color:white;font-size:13px;" onclick="startSwap('${day}')" title="Intercambiar">🔀</button>
+          <button class="btn-icon" style="color:white;font-size:13px;" onclick="startSwap('${day}')" title="Intercambiar día">🔀</button>
         </div>
       </div>
       <div class="day-body">
         <div class="meal-row">
           <span class="meal-name ${rec?'':'meal-empty'}">${rec?rec.name:'Sin receta disponible'}</span>
-          <button class="btn-icon" onclick="openChangeRecipe('${day}')" title="Cambiar">🔄</button>
+          <button class="btn-icon" onclick="openChangeRecipe('${day}')" title="Cambiar receta completa">🔄</button>
         </div>
+        ${(rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','${activePlanTab}','${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}
       </div>
     </div>`;
   }).join('');
+}
+let _swapContext=null,_pendingSwap=null;
+function openSwapPieza(day,tab,pieceId){
+  const rec=currentMenu[day]?.[tab];if(!rec)return;
+  const piece=(rec.pieces||[]).find(p=>p.id===pieceId);if(!piece)return;
+  _swapContext={day,tab,oldPiece:piece,baseRecipe:rec};
+  document.getElementById('swapPiezaTitle').textContent='Cambiar '+(ROLE_ICON[piece.role]||'')+' '+piece.name;
+  document.getElementById('swapPiezaSearch').value='';
+  renderSwapPiezaOptions();
+  document.getElementById('swapPiezaModal').classList.add('open');
+}
+function renderSwapPiezaOptions(){
+  if(!_swapContext)return;
+  const{oldPiece,baseRecipe}=_swapContext;
+  const search=normTxt(document.getElementById('swapPiezaSearch').value);
+  const cat=baseRecipe.category||'adulto';
+  const list=components.filter(c=>c.role===oldPiece.role&&(c.category||'adulto')===cat&&c.id!==oldPiece.id&&(!search||normTxt(c.name).includes(search)));
+  document.getElementById('swapPiezaOptions').innerHTML=list.length?list.map(c=>`<div class="recipe-option" onclick="selectSwapPieza('${c.id}')"><span>${c.name}</span></div>`).join(''):'<div class="text-muted">No hay otras piezas de este tipo. Crea una en la pestaña Piezas del Recetario.</div>';
+}
+function selectSwapPieza(newComponentId){
+  const newComp=components.find(c=>c.id===newComponentId);if(!newComp||!_swapContext)return;
+  closeModal('swapPiezaModal');
+  const{day,tab,oldPiece,baseRecipe}=_swapContext;
+  const newPieces=baseRecipe.pieces.map(p=>p.id===oldPiece.id?newComp:p);
+  _pendingSwap={day,tab,newPieces,baseRecipe};
+  document.getElementById('saveAsRecipeName').value=baseRecipe.name;
+  document.getElementById('saveAsRecipeModal').classList.add('open');
+}
+function applySwapOnlyThisWeek(){
+  if(!_pendingSwap)return;
+  const{day,tab,newPieces,baseRecipe}=_pendingSwap;
+  currentMenu[day][tab]={...baseRecipe,pieces:newPieces};
+  closeModal('saveAsRecipeModal');_pendingSwap=null;
+  renderPlanner();
+  showToast('Cambiado solo para esta semana ✅');
+}
+async function confirmSaveAsNewRecipe(){
+  if(!_pendingSwap)return;
+  const name=document.getElementById('saveAsRecipeName').value.trim();
+  if(!name){alert('Ponle un nombre a la nueva receta');return;}
+  const{day,tab,newPieces,baseRecipe}=_pendingSwap;
+  const data={name,category:baseRecipe.category,protein_type:baseRecipe.protein_type||null,ingredients_list:baseRecipe.ingredients_list||null,preparation_notes:baseRecipe.preparation_notes||null,video_url:baseRecipe.video_url||null,meal_time:['comida']};
+  const{data:inserted,error}=await sb.from('recipes').insert(data).select().single();
+  if(error||!inserted){alert('No se pudo guardar la receta nueva');return;}
+  const pieceIds=newPieces.map(p=>p.id);
+  if(pieceIds.length)await sb.from('recipe_components').insert(pieceIds.map(cid=>({recipe_id:inserted.id,component_id:cid})));
+  const newRecipe={...inserted,pieces:newPieces};
+  recipes.push(newRecipe);
+  currentMenu[day][tab]=newRecipe;
+  closeModal('saveAsRecipeModal');_pendingSwap=null;
+  renderPlanner();
+  showToast('✅ Nueva receta guardada y aplicada');
 }
 function toggleLock(day){
   if(!currentMenu[day])return;
@@ -1464,22 +1543,31 @@ function getNextWeekday(dayName){
 }
 
 // LISTA DE COMPRA
+function buildIngredientLines(r){
+  const lines=[];
+  if(r.ingredients_list)lines.push(...r.ingredients_list.split('\n'));
+  (r.pieces||[]).forEach(p=>{if(p.ingredients_list)lines.push(...p.ingredients_list.split('\n'));});
+  return lines;
+}
+function buildIngredientItemMap(recipesList,listId){
+  const ingMap={};
+  recipesList.forEach(r=>{
+    buildIngredientLines(r).forEach(line=>{
+      const t=line.trim();if(!t)return;
+      const key=t.toLowerCase();
+      if(!ingMap[key]){const cat=getCategoryForIngredient(t)||'Despensa';ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};}
+    });
+  });
+  return ingMap;
+}
 async function generateShoppingList(menuId,hhId){
   const{data:list}=await sb.from('shopping_lists').insert({menu_id:menuId,user_id:currentUser.id,household_id:hhId}).select().single();
   if(!list)return;currentListId=list.id;
   const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
   const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
-  // Ingredientes de recetas — deduplicados (Emma + adulto misma línea)
+  // Ingredientes de recetas (base + piezas) — deduplicados (Emma + adulto misma línea)
   const menuRecipes=Object.values(currentMenu).flatMap(slot=>[slot.adulto,slot.bebe].filter(Boolean));
-  const ingMap={};
-  menuRecipes.forEach(r=>{
-    if(!r.ingredients_list)return;
-    r.ingredients_list.split('\n').forEach(line=>{
-      const t=line.trim();if(!t)return;
-      const key=t.toLowerCase();
-      if(!ingMap[key]){const cat=getCategoryForIngredient(t)||'Despensa';ingMap[key]={list_id:list.id,ingredient_name:t,unit:'',category:cat,checked:false};}
-    });
-  });
+  const ingMap=buildIngredientItemMap(menuRecipes,list.id);
   const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
   const recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
   const allItems=[...basicItems,...recipeItems];
@@ -1593,10 +1681,20 @@ async function saveManualItem(){
 }
 async function regenerateList(){
   if(!currentListId)return;if(!await appConfirm('¿Regenerar la lista? Se perderán precios y cambios manuales.'))return;
+  const{data:listRow}=await sb.from('shopping_lists').select('menu_id').eq('id',currentListId).single();
   await sb.from('shopping_list_items').delete().eq('list_id',currentListId);
   const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
-  const items=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
-  if(items.length)await sb.from('shopping_list_items').insert(items);
+  const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  let recipeItems=[];
+  if(listRow?.menu_id){
+    const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*)))').eq('menu_id',listRow.menu_id);
+    const menuRecipes=(days||[]).map(d=>d.recipes).filter(Boolean).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
+    const ingMap=buildIngredientItemMap(menuRecipes,currentListId);
+    const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
+    recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
+  }
+  const allItems=[...basicItems,...recipeItems];
+  if(allItems.length)await sb.from('shopping_list_items').insert(allItems);
   loadShoppingList();showToast('Lista regenerada 🔄');
 }
 
