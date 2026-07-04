@@ -96,6 +96,9 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .form-row input:focus, .form-row select:focus { border-color:var(--sage); background:white; }
 .form-row textarea { resize:vertical; min-height:80px; }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.pieza-suggest { position:absolute; top:100%; left:0; right:0; background:var(--white); border:1px solid var(--border); border-radius:8px; margin-top:2px; max-height:160px; overflow-y:auto; z-index:50; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+.pieza-suggest div { padding:8px 10px; font-size:13px; cursor:pointer; }
+.pieza-suggest div:hover { background:var(--beige); }
 .list-item { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--border); }
 .list-item:last-child { border-bottom:none; }
 .list-item input[type=checkbox] { width:24px; height:24px; accent-color:var(--dark-green); cursor:pointer; flex-shrink:0; border-radius:6px; }
@@ -259,6 +262,10 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
       <div id="piezasSubview" style="display:none;">
         <p style="font-size:12px;color:var(--text-muted);margin-bottom:0.75rem;">Piezas reutilizables: úsalas en varias recetas sin repetir ingredientes.</p>
+        <div class="tabs">
+          <button class="tab active" onclick="switchComponentCategory('adulto',this)">🧑 Adultos</button>
+          <button class="tab" onclick="switchComponentCategory('bebe',this)">👶 Emma</button>
+        </div>
         <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="componentSearch" placeholder="Buscar pieza..." oninput="renderComponents()"><button class="clear-btn" onclick="clearSearch('componentSearch',renderComponents)">✕</button></div>
         <div class="filters">
           <button class="filter-btn active" onclick="filterComponentRole('',this)">Todas</button>
@@ -413,21 +420,24 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 <!-- MODALES -->
 <div class="modal-overlay" id="recipeModal">
   <div class="modal">
-    <div class="modal-title" id="recipeModalTitle">Nueva receta</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+      <div class="modal-title" id="recipeModalTitle" style="margin-bottom:0;">Nueva receta</div>
+      <button class="btn-icon" onclick="closeModal('recipeModal')" title="Cerrar">✕</button>
+    </div>
     <div class="form-row"><label>Nombre *</label><input type="text" id="rName" placeholder="Ej: Pollo al limón con arroz"></div>
     <div class="form-grid">
       <div class="form-row"><label>Categoría</label><select id="rCategory"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
       <div class="form-row"><label>Proteína</label><select id="rProtein"><option value="">Sin proteína</option><option value="pollo">🍗 Pollo</option><option value="carne">🥩 Carne</option><option value="cerdo">🐖 Cerdo</option><option value="pescado">🐟 Pescado</option><option value="vegetal">🥦 Vegetal</option><option value="huevo">🥚 Huevo</option></select></div>
     </div>
     <div style="margin-bottom:1rem;">
-      <label style="display:block;font-size:13px;color:var(--text-muted);font-weight:500;margin-bottom:4px;">Piezas <span style="font-weight:400;font-size:12px;">(opcional — reusa tu biblioteca; si escribes un nombre nuevo, se crea sola)</span></label>
+      <label style="display:block;font-size:13px;color:var(--text-muted);font-weight:500;margin-bottom:4px;">Piezas <span style="font-weight:400;font-size:12px;">(opcional — reusa tu biblioteca de la categoría elegida arriba; si escribes un nombre nuevo, se crea sola)</span></label>
       <div class="form-grid" style="margin-bottom:12px;">
-        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">🍗 Proteína</label><input type="text" id="rPiezaProteina" list="dlProteina" placeholder="Ej: Carne a la plancha"><datalist id="dlProteina"></datalist></div>
-        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">🌾 Carbohidrato</label><input type="text" id="rPiezaCarbo" list="dlCarbo" placeholder="Ej: Frijoles"><datalist id="dlCarbo"></datalist></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🍗 Proteína</label><input type="text" id="rPiezaProteina" placeholder="Ej: Carne a la plancha" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaProteina','proteina')" onfocus="renderPiezaSuggestions('rPiezaProteina','proteina')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaProteina'),150)"><div id="rPiezaProteinaSuggest" class="pieza-suggest" style="display:none;"></div></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🌾 Carbohidrato</label><input type="text" id="rPiezaCarbo" placeholder="Ej: Frijoles" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaCarbo','carbohidrato')" onfocus="renderPiezaSuggestions('rPiezaCarbo','carbohidrato')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaCarbo'),150)"><div id="rPiezaCarboSuggest" class="pieza-suggest" style="display:none;"></div></div>
       </div>
       <div class="form-grid">
-        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">🥗 Ensalada</label><input type="text" id="rPiezaEnsalada" list="dlEnsalada" placeholder="Ej: Remolacha"><datalist id="dlEnsalada"></datalist></div>
-        <div class="form-row" style="margin-bottom:0;"><label style="font-size:11px;">➕ Otro</label><input type="text" id="rPiezaOtro" list="dlOtro" placeholder="Ej: Plátano frito"><datalist id="dlOtro"></datalist></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">🥗 Ensalada</label><input type="text" id="rPiezaEnsalada" placeholder="Ej: Remolacha" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaEnsalada','ensalada')" onfocus="renderPiezaSuggestions('rPiezaEnsalada','ensalada')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaEnsalada'),150)"><div id="rPiezaEnsaladaSuggest" class="pieza-suggest" style="display:none;"></div></div>
+        <div class="form-row" style="margin-bottom:0;position:relative;"><label style="font-size:11px;">➕ Otro</label><input type="text" id="rPiezaOtro" placeholder="Ej: Plátano frito" autocomplete="off" oninput="renderPiezaSuggestions('rPiezaOtro','otro')" onfocus="renderPiezaSuggestions('rPiezaOtro','otro')" onblur="setTimeout(()=>hidePiezaSuggestions('rPiezaOtro'),150)"><div id="rPiezaOtroSuggest" class="pieza-suggest" style="display:none;"></div></div>
       </div>
     </div>
     <div class="form-row"><label>Ingredientes base <span style="font-weight:400;color:var(--text-muted);font-size:12px;">(lo que no cubran las piezas de arriba — opcional)</span></label><textarea id="rIngredients" placeholder="Ej:&#10;Caldo&#10;Cebolla&#10;Ajo" rows="4"></textarea></div>
@@ -587,13 +597,16 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   <div class="modal">
     <div class="modal-title" id="componentModalTitle">Nueva pieza</div>
     <div class="form-row"><label>Nombre *</label><input type="text" id="cName" placeholder="Ej: Pollo a la plancha"></div>
-    <div class="form-row"><label>Tipo de pieza</label>
-      <select id="cRole" onchange="toggleComponentSubtypeField()">
-        <option value="proteina">🍗 Proteína</option>
-        <option value="carbohidrato">🌾 Carbohidrato</option>
-        <option value="ensalada">🥗 Ensalada</option>
-        <option value="otro">➕ Otro</option>
-      </select>
+    <div class="form-grid">
+      <div class="form-row"><label>Categoría</label><select id="cCategory"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
+      <div class="form-row"><label>Tipo de pieza</label>
+        <select id="cRole" onchange="toggleComponentSubtypeField()">
+          <option value="proteina">🍗 Proteína</option>
+          <option value="carbohidrato">🌾 Carbohidrato</option>
+          <option value="ensalada">🥗 Ensalada</option>
+          <option value="otro">➕ Otro</option>
+        </select>
+      </div>
     </div>
     <div class="form-row" id="cProteinSubtypeRow"><label>Tipo de proteína</label>
       <select id="cProteinSubtype">
@@ -981,7 +994,7 @@ function showPage(pageId,btn){
 }
 
 // PIEZAS / COMPONENTES REUTILIZABLES
-let components=[],activeComponentRole='',editingComponentId=null;
+let components=[],activeComponentRole='',activeComponentCategory='adulto',editingComponentId=null;
 const ROLE_LABEL={proteina:'🍗 Proteína',carbohidrato:'🌾 Carbohidrato',ensalada:'🥗 Ensalada',otro:'➕ Otro'};
 function switchRecetarioView(view){
   document.getElementById('viewTabRecetas').classList.toggle('active',view==='recetas');
@@ -1002,9 +1015,15 @@ function filterComponentRole(role,btn){
   btn.classList.add('active');
   renderComponents();
 }
+function switchComponentCategory(cat,btn){
+  activeComponentCategory=cat;
+  btn.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderComponents();
+}
 function renderComponents(){
   const search=(document.getElementById('componentSearch')?.value||'').toLowerCase();
-  let f=components;
+  let f=components.filter(c=>(c.category||'adulto')===activeComponentCategory);
   if(activeComponentRole)f=f.filter(c=>c.role===activeComponentRole);
   if(search)f=f.filter(c=>c.name.toLowerCase().includes(search));
   const el=document.getElementById('componentsList');
@@ -1033,6 +1052,7 @@ function openAddComponent(){
   editingComponentId=null;
   document.getElementById('componentModalTitle').textContent='Nueva pieza';
   document.getElementById('cName').value='';
+  document.getElementById('cCategory').value=activeComponentCategory;
   document.getElementById('cRole').value='proteina';
   document.getElementById('cProteinSubtype').value='';
   document.getElementById('cIngredients').value='';
@@ -1044,6 +1064,7 @@ function editComponent(id){
   editingComponentId=id;
   document.getElementById('componentModalTitle').textContent='Editar pieza';
   document.getElementById('cName').value=c.name;
+  document.getElementById('cCategory').value=c.category||'adulto';
   document.getElementById('cRole').value=c.role;
   document.getElementById('cProteinSubtype').value=c.protein_subtype||'';
   document.getElementById('cIngredients').value=c.ingredients_list||'';
@@ -1057,6 +1078,7 @@ async function saveComponent(){
   const role=document.getElementById('cRole').value;
   const data={
     name,role,
+    category:document.getElementById('cCategory').value,
     protein_subtype:role==='proteina'?(document.getElementById('cProteinSubtype').value||null):null,
     ingredients_list:document.getElementById('cIngredients').value.trim()||null,
     is_active:true
@@ -1086,20 +1108,31 @@ async function doSaveComponent(data){
 async function resolveComponentId(name,role){
   name=(name||'').trim();
   if(!name)return null;
-  const existing=components.find(c=>c.role===role&&c.name.toLowerCase()===name.toLowerCase());
+  const cat=document.getElementById('rCategory')?.value||'adulto';
+  const existing=components.find(c=>c.role===role&&c.name.toLowerCase()===name.toLowerCase()&&(c.category||'adulto')===cat);
   if(existing)return existing.id;
-  const{data,error}=await sb.from('components').insert({name,role,is_active:true}).select().single();
+  const{data,error}=await sb.from('components').insert({name,role,category:cat,is_active:true}).select().single();
   if(error||!data)return null;
   components.push(data);
   return data.id;
 }
-function populatePiezaDatalists(){
-  const byRole={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
-  components.forEach(c=>{if(byRole[c.role])byRole[c.role].push(c.name);});
-  document.getElementById('dlProteina').innerHTML=byRole.proteina.map(n=>`<option value="${n}">`).join('');
-  document.getElementById('dlCarbo').innerHTML=byRole.carbohidrato.map(n=>`<option value="${n}">`).join('');
-  document.getElementById('dlEnsalada').innerHTML=byRole.ensalada.map(n=>`<option value="${n}">`).join('');
-  document.getElementById('dlOtro').innerHTML=byRole.otro.map(n=>`<option value="${n}">`).join('');
+function renderPiezaSuggestions(inputId,role){
+  const input=document.getElementById(inputId);
+  const box=document.getElementById(inputId+'Suggest');
+  const cat=document.getElementById('rCategory')?.value||'adulto';
+  const q=normTxt(input.value);
+  const list=components.filter(c=>c.role===role&&(c.category||'adulto')===cat&&(!q||normTxt(c.name).includes(q)));
+  if(!list.length){box.style.display='none';box.innerHTML='';return;}
+  box.innerHTML=list.slice(0,8).map(c=>`<div onmousedown="selectPieza('${inputId}','${c.name.replace(/'/g,"\\'")}')">${c.name}</div>`).join('');
+  box.style.display='block';
+}
+function hidePiezaSuggestions(inputId){
+  const box=document.getElementById(inputId+'Suggest');
+  if(box)box.style.display='none';
+}
+function selectPieza(inputId,name){
+  document.getElementById(inputId).value=name;
+  hidePiezaSuggestions(inputId);
 }
 async function deleteComponent(id){
   if(!await appConfirm('¿Eliminar esta pieza?'))return;
@@ -1147,7 +1180,6 @@ function openAddRecipe(){
   editingRecipeId=null;document.getElementById('recipeModalTitle').textContent='Nueva receta';
   ['rName','rIngredients','rNotes','rVideo','rPiezaProteina','rPiezaCarbo','rPiezaEnsalada','rPiezaOtro'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';
-  populatePiezaDatalists();
   document.getElementById('recipeModal').classList.add('open');
 }
 let _addToMenuRecipeId=null;
@@ -1214,7 +1246,6 @@ function editRecipe(id){
   editingRecipeId=id;document.getElementById('recipeModalTitle').textContent='Editar receta';
   document.getElementById('rName').value=r.name;document.getElementById('rCategory').value=r.category;
   document.getElementById('rProtein').value=r.protein_type||'';
-  populatePiezaDatalists();
   document.getElementById('rPiezaProteina').value=components.find(c=>c.id===r.protein_component_id)?.name||'';
   document.getElementById('rPiezaCarbo').value=components.find(c=>c.id===r.carb_component_id)?.name||'';
   document.getElementById('rPiezaEnsalada').value=components.find(c=>c.id===r.ensalada_component_id)?.name||'';
