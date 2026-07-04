@@ -496,11 +496,36 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <!-- Modal plantilla despensa -->
 <div class="modal-overlay" id="plantillaModal" style="align-items:flex-start;padding-top:1rem;">
-  <div class="modal" style="max-height:90vh;overflow-y:auto;width:100%;max-width:480px;">
-    <div class="modal-title">📋 Plantilla de despensa</div>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">Pon la cantidad de lo que ya tienes en casa. Lo que dejes vacío no se añade.</p>
-    <div id="plantillaItems"></div>
-    <div class="modal-footer" style="margin-top:1rem;">
+  <div class="modal" style="padding:0;display:flex;flex-direction:column;max-height:90vh;width:100%;max-width:480px;">
+    <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid var(--beige);flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+        <div class="modal-title" style="margin-bottom:0;">📋 Plantilla de despensa</div>
+        <button class="btn-icon" onclick="closeModal('plantillaModal')" title="Cerrar">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:0.75rem;">Pon la cantidad de lo que ya tienes en casa. Lo que dejes vacío no se añade.</p>
+      <div class="search-box" style="margin-bottom:0.6rem;"><span class="search-icon">🔍</span><input type="text" id="plantillaSearch" placeholder="Buscar producto..." oninput="filterPlantillaItems()"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <input type="text" id="plantillaNewName" placeholder="Añadir producto nuevo a la plantilla..." style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--beige);">
+        <div style="display:flex;gap:6px;">
+          <select id="plantillaNewCat" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--white);">
+            <option value="Frescos">🍊 Frescos</option>
+            <option value="Carnicería y pescadería">🥩 Carne y pescado</option>
+            <option value="Refrigerados">🧀 Refrigerados</option>
+            <option value="Congelados">❄️ Congelados</option>
+            <option value="Desayuno y panadería">🥣 Desayuno</option>
+            <option value="Despensa" selected>🫙 Despensa</option>
+            <option value="Bebidas">🥤 Bebidas</option>
+            <option value="Snacks">🍿 Snacks</option>
+            <option value="Bebé">🍼 Bebé</option>
+            <option value="Higiene personal">🧴 Higiene personal</option>
+            <option value="Limpieza">🧹 Limpieza</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="addCustomPlantillaItem()">+ Añadir</button>
+        </div>
+      </div>
+    </div>
+    <div id="plantillaItems" style="overflow-y:auto;flex:1;padding:1rem 1.5rem;"></div>
+    <div class="modal-footer" style="margin:0;padding:0.85rem 1.5rem;border-top:1px solid var(--beige);flex-shrink:0;">
       <button class="btn btn-outline" onclick="closeModal('plantillaModal')">Cancelar</button>
       <button class="btn btn-green" onclick="savePlantilla()">Guardar despensa</button>
     </div>
@@ -633,26 +658,76 @@ function getCategoryForIngredient(name){
   return null;
 }
 const CAT_EMOJI={'Frescos':'🍊','Carnicería y pescadería':'🥩','Refrigerados':'🧀','Congelados':'❄️','Desayuno y panadería':'🥣','Despensa':'🫙','Bebidas':'🥤','Snacks':'🍿','Bebé':'🍼','Higiene personal':'🧴','Limpieza':'🧹'};
-function openPlantillaDespensa(){
+let plantillaExtras=[];
+function normTxt(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+async function openPlantillaDespensa(){
+  plantillaExtras=[];
+  if(currentHousehold?.id){
+    const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).eq('type','plantilla');
+    if(data)plantillaExtras=data;
+  }
+  const searchEl=document.getElementById('plantillaSearch');
+  if(searchEl)searchEl.value='';
+  renderPlantillaList();
+  document.getElementById('plantillaModal').classList.add('open');
+}
+function renderPlantillaList(){
   const el=document.getElementById('plantillaItems');
-  // Obtener cantidades actuales de la despensa para prerellenar
   const existing={};
   pantryItems.forEach(p=>existing[p.ingredient_name.toLowerCase()]={qty:p.quantity||'',unit:p.unit||''});
-  el.innerHTML=PLANTILLA_DESPENSA.map((group,gi)=>`
-    <div style="margin-bottom:1.25rem;${gi>0?'padding-top:1rem;border-top:1px solid var(--border);':''}">
+  const groups=PLANTILLA_DESPENSA.map(g=>({cat:g.cat,items:g.items.map(name=>({name,custom:false}))}));
+  plantillaExtras.forEach(e=>{
+    let g=groups.find(g=>g.cat===e.category);
+    if(!g){g={cat:e.category,items:[]};groups.push(g);}
+    g.items.push({name:e.name,custom:true,id:e.id});
+  });
+  el.innerHTML=groups.filter(g=>g.items.length).map((group,gi)=>`
+    <div class="plantilla-group" style="margin-bottom:1.25rem;${gi>0?'padding-top:1rem;border-top:1px solid var(--border);':''}">
       <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--dark-green);text-transform:uppercase;letter-spacing:0.5px;background:var(--beige);padding:6px 10px;border-radius:8px;border-left:3px solid var(--sage);margin-bottom:8px;">
         <span style="font-size:14px;">${CAT_EMOJI[group.cat]||'📦'}</span><span>${group.cat}</span>
       </div>
       ${group.items.map(item=>{
-        const ex=existing[item.toLowerCase()]||{};
-        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-          <span style="flex:1;font-size:13px;">${item}</span>
-          <input type="text" placeholder="cantidad" value="${ex.qty||''}" data-name="${item}" data-cat="${group.cat}"
+        const ex=existing[item.name.toLowerCase()]||{};
+        return `<div class="plantilla-row" data-search="${normTxt(item.name)}" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="flex:1;font-size:13px;">${item.name}</span>
+          <input type="text" placeholder="cantidad" value="${ex.qty||''}" data-name="${item.name}" data-cat="${group.cat}"
             style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--beige);">
+          ${item.custom?`<button class="btn-icon" onclick="deleteCustomPlantillaItem('${item.id}')" title="Quitar de la plantilla">🗑</button>`:'<span style="width:26px;"></span>'}
         </div>`;
       }).join('')}
     </div>`).join('');
-  document.getElementById('plantillaModal').classList.add('open');
+  filterPlantillaItems();
+}
+function filterPlantillaItems(){
+  const q=normTxt(document.getElementById('plantillaSearch')?.value||'');
+  document.querySelectorAll('#plantillaItems .plantilla-row').forEach(row=>{
+    row.style.display=(!q||row.dataset.search.includes(q))?'flex':'none';
+  });
+  document.querySelectorAll('#plantillaItems .plantilla-group').forEach(g=>{
+    const anyVisible=[...g.querySelectorAll('.plantilla-row')].some(r=>r.style.display!=='none');
+    g.style.display=anyVisible?'':'none';
+  });
+}
+async function addCustomPlantillaItem(){
+  if(!currentHousehold?.id)return;
+  const nameInput=document.getElementById('plantillaNewName');
+  const name=nameInput.value.trim();
+  if(!name){showToast('Escribe un nombre de producto');return;}
+  const cat=document.getElementById('plantillaNewCat').value;
+  const dup=plantillaExtras.some(e=>e.name.toLowerCase()===name.toLowerCase())||PLANTILLA_DESPENSA.some(g=>g.items.some(i=>i.toLowerCase()===name.toLowerCase()));
+  if(dup){showToast('Ese producto ya está en la plantilla');return;}
+  const{data,error}=await sb.from('household_basics').insert({household_id:currentHousehold.id,name,category:cat,type:'plantilla',active:true}).select().single();
+  if(error||!data){showToast('No se pudo añadir');return;}
+  plantillaExtras.push(data);
+  nameInput.value='';
+  renderPlantillaList();
+  showToast('✅ Añadido a la plantilla');
+}
+async function deleteCustomPlantillaItem(id){
+  if(!await appConfirm('¿Quitar este producto de la plantilla?'))return;
+  await sb.from('household_basics').delete().eq('id',id);
+  plantillaExtras=plantillaExtras.filter(e=>e.id!==id);
+  renderPlantillaList();
 }
 async function savePlantilla(){
   if(!currentHousehold?.id)return;
