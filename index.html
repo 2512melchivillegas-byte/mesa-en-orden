@@ -337,6 +337,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="section-header">
         <div class="page-title">Lista de compra</div>
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openAddOcasionales()" title="Añadir ocasionales del mes">🗓️</button>
           <button class="btn btn-outline btn-sm" onclick="addManualItem()">+ Añadir</button>
           <button class="btn btn-outline btn-sm" onclick="regenerateList()" title="Regenerar lista">🔄</button>
         </div>
@@ -406,6 +407,11 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <span class="text-muted">€</span>
           <button class="btn btn-green btn-sm" onclick="saveBudget()">Guardar</button>
         </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:0.75rem;">🛒 Productos habituales</div>
+        <p class="text-muted" style="margin-bottom:0.75rem;">Gestiona lo que compras cada semana sin falta (semanales) y lo que compras de vez en cuando en el mes (ocasionales) — no dependen de las recetas del menú.</p>
+        <button class="btn btn-green btn-sm" onclick="openHabitualesModal()">Gestionar productos</button>
       </div>
       <div class="card">
         <div class="card-title" style="margin-bottom:0.75rem;">🏠 Tu hogar</div>
@@ -582,6 +588,61 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="modal-footer" style="margin:0;padding:0.85rem 1.5rem;border-top:1px solid var(--beige);flex-shrink:0;">
       <button class="btn btn-outline" onclick="closeModal('plantillaModal')">Cancelar</button>
       <button class="btn btn-green" onclick="savePlantilla()">Guardar despensa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal productos habituales (semanales / ocasionales) -->
+<div class="modal-overlay" id="habitualesModal" style="align-items:flex-start;padding-top:1rem;">
+  <div class="modal" style="padding:0;display:flex;flex-direction:column;max-height:90vh;width:100%;max-width:480px;">
+    <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid var(--beige);flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+        <div class="modal-title" style="margin-bottom:0;">🛒 Productos habituales</div>
+        <button class="btn-icon" onclick="closeModal('habitualesModal')" title="Cerrar">✕</button>
+      </div>
+      <div class="tabs" style="margin-bottom:0.6rem;">
+        <button class="tab active" id="habitualTabSemanal" onclick="switchHabitualType('semanal',this)">🔁 Semanales</button>
+        <button class="tab" id="habitualTabOcasional" onclick="switchHabitualType('ocasional',this)">🗓️ Ocasionales del mes</button>
+      </div>
+      <p id="habitualTabHint" style="font-size:12px;color:var(--text-muted);margin-bottom:0.75rem;">Estos productos se añaden solos a la lista de compra cada semana, sin importar el menú.</p>
+      <div class="search-box" style="margin-bottom:0.6rem;"><span class="search-icon">🔍</span><input type="text" id="habitualSearch" placeholder="Buscar producto..." oninput="renderHabituales()"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <input type="text" id="habitualName" placeholder="Nombre del producto..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--beige);">
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="habitualQty" placeholder="Cantidad (opcional, ej: ×2)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--white);">
+          <select id="habitualCat" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--white);">
+            <option value="Frescos">🍊 Frescos</option>
+            <option value="Carnicería y pescadería">🥩 Carne y pescado</option>
+            <option value="Refrigerados">🧀 Refrigerados</option>
+            <option value="Congelados">❄️ Congelados</option>
+            <option value="Desayuno y panadería">🥣 Desayuno</option>
+            <option value="Despensa" selected>🫙 Despensa</option>
+            <option value="Bebidas">🥤 Bebidas</option>
+            <option value="Snacks">🍿 Snacks</option>
+            <option value="Bebé">🍼 Bebé</option>
+            <option value="Higiene personal">🧴 Higiene personal</option>
+            <option value="Limpieza">🧹 Limpieza</option>
+          </select>
+        </div>
+        <button class="btn btn-green btn-sm" id="habitualSaveBtn" onclick="saveHabitual()">+ Añadir</button>
+      </div>
+    </div>
+    <div id="habitualesList" style="overflow-y:auto;flex:1;padding:1rem 1.5rem;"></div>
+    <div class="modal-footer" style="margin:0;padding:0.85rem 1.5rem;border-top:1px solid var(--beige);flex-shrink:0;">
+      <button class="btn btn-outline" onclick="closeModal('habitualesModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal elegir ocasionales para esta compra -->
+<div class="modal-overlay" id="ocasionalesPickModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><div class="modal-title" style="margin-bottom:0;">🗓️ Añadir ocasionales</div><button class="btn-icon" onclick="closeModal('ocasionalesPickModal')" title="Cerrar">✕</button></div>
+    <p class="text-muted" style="margin-bottom:0.75rem;">Marca los que necesites esta vez. No se añaden solos cada semana.</p>
+    <div id="ocasionalesPickList" style="max-height:320px;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('ocasionalesPickModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmAddOcasionales()">Añadir seleccionados</button>
     </div>
   </div>
 </div>
@@ -864,6 +925,124 @@ async function resetPantry(){
   await sb.from('pantry_items').delete().eq('household_id',currentHousehold.id);
   pantryItems=[];renderPantry();
   showToast('Despensa vaciada 🔄');
+}
+
+// PRODUCTOS HABITUALES (semanales fijos / ocasionales del mes) — independientes de las recetas
+let householdBasicsAll=[],activeHabitualType='semanal',editingHabitualId=null;
+const HABITUAL_HINTS={semanal:'Estos productos se añaden solos a la lista de compra cada semana, sin importar el menú.',ocasional:'Estos NO se añaden solos. Guárdalos aquí para poder añadirlos con un toque cuando los necesites (botón 🗓️ en Lista de compra).'};
+async function loadHouseholdBasicsAll(){
+  if(!currentHousehold?.id)return;
+  const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).in('type',['semanal','ocasional']).order('name');
+  householdBasicsAll=data||[];
+}
+async function openHabitualesModal(){
+  await loadHouseholdBasicsAll();
+  document.getElementById('habitualSearch').value='';
+  resetHabitualForm();
+  switchHabitualType('semanal',document.getElementById('habitualTabSemanal'));
+  document.getElementById('habitualesModal').classList.add('open');
+}
+function switchHabitualType(type,btn){
+  activeHabitualType=type;
+  document.querySelectorAll('#habitualesModal .tabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('habitualTabHint').textContent=HABITUAL_HINTS[type];
+  resetHabitualForm();
+  renderHabituales();
+}
+function resetHabitualForm(){
+  editingHabitualId=null;
+  document.getElementById('habitualName').value='';
+  document.getElementById('habitualQty').value='';
+  document.getElementById('habitualCat').value='Despensa';
+  document.getElementById('habitualSaveBtn').textContent='+ Añadir';
+}
+function renderHabituales(){
+  const q=normTxt(document.getElementById('habitualSearch').value);
+  const list=householdBasicsAll.filter(b=>b.type===activeHabitualType&&(!q||normTxt(b.name).includes(q)));
+  const el=document.getElementById('habitualesList');
+  if(!list.length){el.innerHTML='<p class="text-muted" style="padding:1rem 0;">Todavía no has añadido ninguno.</p>';return;}
+  el.innerHTML=list.map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--beige);">
+    <span style="font-size:14px;">${CAT_EMOJI[b.category]||'📦'}</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:600;">${b.name}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${b.category}${b.unit?' · '+b.unit:''}</div>
+    </div>
+    <button class="btn-icon" onclick="editHabitual('${b.id}')" title="Editar">✏️</button>
+    <button class="btn-icon" onclick="deleteHabitual('${b.id}')" title="Eliminar">🗑️</button>
+  </div>`).join('');
+}
+function editHabitual(id){
+  const b=householdBasicsAll.find(x=>x.id===id);if(!b)return;
+  editingHabitualId=id;
+  document.getElementById('habitualName').value=b.name;
+  document.getElementById('habitualQty').value=b.unit||'';
+  document.getElementById('habitualCat').value=b.category||'Despensa';
+  document.getElementById('habitualSaveBtn').textContent='Guardar cambios';
+}
+async function saveHabitual(){
+  if(!currentHousehold?.id)return;
+  const name=document.getElementById('habitualName').value.trim();
+  if(!name){showToast('Escribe un nombre de producto');return;}
+  const unit=document.getElementById('habitualQty').value.trim();
+  const category=document.getElementById('habitualCat').value;
+  if(editingHabitualId){
+    await sb.from('household_basics').update({name,unit,category}).eq('id',editingHabitualId);
+    showToast('✅ Actualizado');
+  }else{
+    const dup=householdBasicsAll.some(b=>b.type===activeHabitualType&&b.name.toLowerCase()===name.toLowerCase());
+    if(dup){showToast('Ya está en esta lista');return;}
+    await sb.from('household_basics').insert({household_id:currentHousehold.id,name,unit,category,type:activeHabitualType,active:true});
+    showToast('✅ Añadido');
+  }
+  await loadHouseholdBasicsAll();
+  resetHabitualForm();
+  renderHabituales();
+}
+async function deleteHabitual(id){
+  if(!await appConfirm('¿Eliminar este producto de tu lista de habituales?'))return;
+  await sb.from('household_basics').delete().eq('id',id);
+  householdBasicsAll=householdBasicsAll.filter(b=>b.id!==id);
+  if(editingHabitualId===id)resetHabitualForm();
+  renderHabituales();
+}
+async function getWeeklyBasics(){
+  const hhId=currentHousehold?.id;
+  if(hhId){
+    const{data}=await sb.from('household_basics').select('*').eq('household_id',hhId).eq('type','semanal').eq('active',true);
+    if(data&&data.length)return data.map(b=>({name:b.name,qty:b.unit||'',cat:b.category||'Despensa'}));
+  }
+  return BASICOS_FIJOS;
+}
+let _ocasionalesToAdd=[];
+async function openAddOcasionales(){
+  if(!currentHousehold?.id)return;
+  const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).eq('type','ocasional').eq('active',true).order('name');
+  const items=data||[];
+  const el=document.getElementById('ocasionalesPickList');
+  if(!items.length){
+    el.innerHTML='<p class="text-muted">Todavía no tienes productos ocasionales guardados. Añádelos desde Ajustes → 🛒 Productos habituales.</p>';
+  }else{
+    el.innerHTML=items.map(b=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">
+      <input type="checkbox" value="${b.id}" class="ocasional-check">
+      <span style="font-size:14px;">${CAT_EMOJI[b.category]||'📦'}</span>
+      <span style="flex:1;">${b.name}${b.unit?' <span style="color:var(--text-muted);">· '+b.unit+'</span>':''}</span>
+    </label>`).join('');
+  }
+  _ocasionalesToAdd=items;
+  document.getElementById('ocasionalesPickModal').classList.add('open');
+}
+async function confirmAddOcasionales(){
+  if(!currentListId){showToast('Primero confirma un menú para tener una lista activa');return;}
+  const checked=[...document.querySelectorAll('.ocasional-check:checked')].map(c=>c.value);
+  if(!checked.length){closeModal('ocasionalesPickModal');return;}
+  const existingNames=new Set(_lastShopItems.map(i=>i.ingredient_name.toLowerCase()));
+  const toInsert=_ocasionalesToAdd.filter(b=>checked.includes(b.id)&&!existingNames.has(b.name.toLowerCase()))
+    .map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.unit||'',category:b.category||'Despensa',checked:false}));
+  if(toInsert.length)await sb.from('shopping_list_items').insert(toInsert);
+  closeModal('ocasionalesPickModal');
+  loadShoppingList();
+  showToast(toInsert.length?`✅ ${toInsert.length} producto(s) añadido(s)`:'Ya estaban en la lista');
 }
 function getWeekDays(){
   const start=new Date(getNextWeekday(weekStart)+'T00:00:00');
@@ -1758,7 +1937,8 @@ async function generateShoppingList(menuId,hhId){
   const{data:list}=await sb.from('shopping_lists').insert({menu_id:menuId,user_id:currentUser.id,household_id:hhId}).select().single();
   if(!list)return;currentListId=list.id;
   const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
-  const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  const weeklyBasics=await getWeeklyBasics();
+  const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   // Ingredientes de recetas (base + piezas) — deduplicados, ignorando comidas marcadas como no preparadas
   const menuRecipes=[];
   Object.values(currentMenu).forEach(slot=>{
@@ -1882,7 +2062,8 @@ async function regenerateList(){
   const{data:listRow}=await sb.from('shopping_lists').select('menu_id').eq('id',currentListId).single();
   await sb.from('shopping_list_items').delete().eq('list_id',currentListId);
   const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
-  const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  const weeklyBasics=await getWeeklyBasics();
+  const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   let recipeItems=[];
   if(listRow?.menu_id){
     const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',listRow.menu_id);
