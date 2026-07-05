@@ -260,6 +260,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <button class="filter-btn" onclick="filterProtein('pescado',this)">🐟 Pescado</button>
           <button class="filter-btn" onclick="filterProtein('vegetal',this)">🥦 Vegetal</button>
           <button class="filter-btn" onclick="filterProtein('huevo',this)">🥚 Huevo</button>
+          <button class="filter-btn" onclick="filterProtein('__missing__',this)">⚠️ Sin ingredientes</button>
         </div>
         <div id="recipesList"><div class="loading">Cargando...</div></div>
       </div>
@@ -1214,13 +1215,22 @@ async function loadRecipes(){
   recipes=(data||[]).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
   renderRecipes();
 }
+function recipeMissingIngredients(r){
+  return !(r.ingredients_list&&r.ingredients_list.trim())&&!(r.pieces&&r.pieces.length);
+}
 function renderRecipes(){
   const search=(document.getElementById('recipeSearch')?.value||'').toLowerCase();
   let f=recipes.filter(r=>r.category===activeRecipeTab);
-  if(activeProtein)f=f.filter(r=>r.protein_type===activeProtein);
+  if(activeProtein==='__missing__')f=f.filter(recipeMissingIngredients);
+  else if(activeProtein)f=f.filter(r=>r.protein_type===activeProtein);
   if(search)f=f.filter(r=>r.name.toLowerCase().includes(search));
   const el=document.getElementById('recipesList');
-  if(!f.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🍽️</div><p>No hay recetas. Pulsa <strong>+ Añadir</strong></p></div>`;return;}
+  if(!f.length){
+    el.innerHTML=activeProtein==='__missing__'
+      ?`<div class="empty"><div class="empty-icon">✅</div><p>¡Todas tus recetas tienen ingredientes! Nada pendiente por aquí.</p></div>`
+      :`<div class="empty"><div class="empty-icon">🍽️</div><p>No hay recetas. Pulsa <strong>+ Añadir</strong></p></div>`;
+    return;
+  }
   el.innerHTML=f.map(r=>`<div class="card">
     <div class="card-header">
       <div style="flex:1;min-width:0;">
@@ -1229,6 +1239,7 @@ function renderRecipes(){
           ${r.protein_type?`<span class="badge badge-${r.protein_type}">${eP(r.protein_type)} ${r.protein_type}</span>`:''}
           <span class="badge badge-${r.category}">${r.category==='bebe'?'👶 Emma':'🧑 Adultos'}</span>
           ${(r.pieces&&r.pieces.length)?`<span class="badge" style="background:var(--beige);color:var(--sage);">🧩 ${r.pieces.length} pieza${r.pieces.length>1?'s':''}</span>`:''}
+          ${recipeMissingIngredients(r)?'<span class="badge" style="background:#FEF3C7;color:#92400E;">⚠️ sin ingredientes</span>':''}
         </div>
       </div>
       <div class="card-actions">
