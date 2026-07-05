@@ -133,6 +133,10 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .piece-chip { display:inline-flex; align-items:center; gap:4px; background:var(--beige); color:var(--dark-green); font-size:11px; padding:3px 6px 3px 8px; border-radius:12px; }
 .piece-chip span { cursor:pointer; opacity:0.6; }
 .piece-chip span:hover { opacity:1; }
+.meal-time-label { font-size:11px; color:var(--text-muted); font-weight:700; width:82px; flex-shrink:0; }
+.skip-toggle { display:flex; align-items:center; gap:3px; font-size:11px; color:var(--text-muted); cursor:pointer; flex-shrink:0; user-select:none; }
+.skip-toggle input { accent-color:var(--coral); cursor:pointer; }
+.meal-skipped { flex:1; color:var(--coral); font-style:italic; }
 .swap-hint { background:var(--coral); color:white; padding:8px 12px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; text-align:center; margin-bottom:0.75rem; display:none; }
 .week-config { background:var(--white); border-radius:var(--radius); padding:1rem; margin-bottom:1rem; border:1px solid var(--border); }
 .week-days { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
@@ -431,8 +435,18 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     </div>
     <div class="form-row"><label>Nombre *</label><input type="text" id="rName" placeholder="Ej: Pollo al limón con arroz"></div>
     <div class="form-grid">
-      <div class="form-row"><label>Categoría</label><select id="rCategory"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
+      <div class="form-row"><label>Categoría</label><select id="rCategory" onchange="onRCategoryChange()"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
       <div class="form-row"><label>Proteína</label><select id="rProtein"><option value="">Sin proteína</option><option value="pollo">🍗 Pollo</option><option value="carne">🥩 Carne</option><option value="cerdo">🐖 Cerdo</option><option value="pescado">🐟 Pescado</option><option value="vegetal">🥦 Vegetal</option><option value="huevo">🥚 Huevo</option></select></div>
+    </div>
+    <div class="form-row" id="rMealTimeWrap" style="display:none;">
+      <label>Momentos del día (Emma)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:400;color:var(--text-dark);"><input type="checkbox" id="rMealDesayuno"> 🌅 Desayuno</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:400;color:var(--text-dark);"><input type="checkbox" id="rMealMediaManana"> 🍎 Media mañana</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:400;color:var(--text-dark);"><input type="checkbox" id="rMealComida" checked> 🍽️ Comida</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:400;color:var(--text-dark);"><input type="checkbox" id="rMealMerienda"> 🥐 Merienda</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:400;color:var(--text-dark);"><input type="checkbox" id="rMealCena"> 🌙 Cena</label>
+      </div>
     </div>
     <div style="margin-bottom:1rem;">
       <label style="display:block;font-size:13px;color:var(--text-muted);font-weight:500;margin-bottom:4px;">Piezas <span style="font-weight:400;font-size:12px;">(opcional — reusa tu biblioteca de la categoría elegida arriba; si escribes un nombre nuevo, se crea sola)</span></label>
@@ -465,6 +479,10 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row" style="margin-top:0.75rem;">
       <label>Día</label>
       <select id="addToMenuDay" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:var(--white);"></select>
+    </div>
+    <div class="form-row" id="addToMenuMealTimeWrap" style="display:none;">
+      <label>Momento del día</label>
+      <select id="addToMenuMealTime" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:var(--white);"></select>
     </div>
     <div class="modal-footer" style="margin-top:1rem;">
       <button class="btn btn-outline" onclick="closeModal('addToMenuModal')">Cancelar</button>
@@ -676,8 +694,14 @@ let activeRecipeTab='adulto',activePlanTab='adulto',activeProtein='';
 let editingRecipeId=null,currentMenu={},currentListId=null;
 let weekStart='Lunes',weekLength=7;
 let swapMode=false,swapDay1=null;
-let changingDay=null,changingTab=null;
+let changingDay=null,changingTab=null,changingMealTime=null;
 let weekBudget=170;
+const BEBE_MEALS=['desayuno','media_manana','comida','merienda','cena'];
+const MEAL_LABELS={desayuno:'🌅 Desayuno',media_manana:'🍎 Media mañana',comida:'🍽️ Comida',merienda:'🥐 Merienda',cena:'🌙 Cena'};
+const MEAL_CHECKBOX_IDS=[['rMealDesayuno','desayuno'],['rMealMediaManana','media_manana'],['rMealComida','comida'],['rMealMerienda','merienda'],['rMealCena','cena']];
+function getMealTimeCheckboxes(){return MEAL_CHECKBOX_IDS.filter(([id])=>document.getElementById(id).checked).map(([,v])=>v);}
+function setMealTimeCheckboxes(mealTimes){const mt=(mealTimes&&mealTimes.length)?mealTimes:['comida'];MEAL_CHECKBOX_IDS.forEach(([id,v])=>{document.getElementById(id).checked=mt.includes(v);});}
+function onRCategoryChange(){document.getElementById('rMealTimeWrap').style.display=document.getElementById('rCategory').value==='bebe'?'block':'none';}
 const DOW_SUN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 function toISODate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function isISODate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
@@ -1259,6 +1283,7 @@ function openAddRecipe(){
   editingRecipeId=null;document.getElementById('recipeModalTitle').textContent='Nueva receta';
   ['rName','rIngredients','rNotes','rVideo','rPiezaProteina','rPiezaCarbo','rPiezaEnsalada','rPiezaOtro'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';
+  setMealTimeCheckboxes(['comida']);onRCategoryChange();
   pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
   ['proteina','carbohidrato','ensalada','otro'].forEach(renderPiezaChips);
   document.getElementById('recipeModal').classList.add('open');
@@ -1272,20 +1297,33 @@ function openAddToMenu(recipeId){
   const sel=document.getElementById('addToMenuDay');
   if(!days.length){alert('Primero configura la semana en Menú y genera al menos un día.');return;}
   sel.innerHTML=days.map(d=>`<option value="${d}">${dayLabel(d)}</option>`).join('');
+  const mtWrap=document.getElementById('addToMenuMealTimeWrap');
+  if(r.category==='bebe'){
+    const opts=(r.meal_time&&r.meal_time.length?r.meal_time:['comida']).filter(mt=>BEBE_MEALS.includes(mt));
+    document.getElementById('addToMenuMealTime').innerHTML=(opts.length?opts:['comida']).map(mt=>`<option value="${mt}">${MEAL_LABELS[mt]}</option>`).join('');
+    mtWrap.style.display='block';
+  }else{mtWrap.style.display='none';}
   document.getElementById('addToMenuModal').classList.add('open');
 }
 function confirmAddToMenu(){
   const r=recipes.find(x=>x.id===_addToMenuRecipeId);if(!r)return;
   const day=document.getElementById('addToMenuDay').value;
-  if(!currentMenu[day])currentMenu[day]={adulto:null,bebe:null,protein:r.protein_type||null,locked:false};
+  if(!currentMenu[day])currentMenu[day]={adulto:{recipe:null,skipped:false},bebe:{},protein:r.protein_type||null,locked:false};
   currentMenu[day].locked=true; // bloquear para que Generar lo respete
-  const tab=r.category==='bebe'?'bebe':'adulto';
-  currentMenu[day][tab]=r;
-  if(r.protein_type)currentMenu[day].protein=r.protein_type;
-  // Si cambio adulto sincroniza Emma
-  if(tab==='adulto'&&r.protein_type){
-    const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type);
-    if(bp.length&&!currentMenu[day].bebe)currentMenu[day].bebe=bp[Math.floor(Math.random()*bp.length)];
+  if(!currentMenu[day].bebe)currentMenu[day].bebe={};
+  if(r.category==='bebe'){
+    const mt=document.getElementById('addToMenuMealTime').value||'comida';
+    currentMenu[day].bebe[mt]={recipe:r,skipped:false};
+    if(mt==='comida'&&r.protein_type)currentMenu[day].protein=r.protein_type;
+  }else{
+    currentMenu[day].adulto={recipe:r,skipped:false};
+    if(r.protein_type){
+      currentMenu[day].protein=r.protein_type;
+      if(!currentMenu[day].bebe.comida){
+        const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type&&(x.meal_time||[]).includes('comida'));
+        if(bp.length)currentMenu[day].bebe.comida={recipe:bp[Math.floor(Math.random()*bp.length)],skipped:false};
+      }
+    }
   }
   document.getElementById('plannerActions').style.display='block';
   closeModal('addToMenuModal');
@@ -1321,6 +1359,7 @@ function editRecipe(id){
   const r=recipes.find(x=>x.id===id);if(!r)return;
   editingRecipeId=id;document.getElementById('recipeModalTitle').textContent='Editar receta';
   document.getElementById('rName').value=r.name;document.getElementById('rCategory').value=r.category;
+  setMealTimeCheckboxes(r.meal_time);onRCategoryChange();
   document.getElementById('rProtein').value=r.protein_type||'';
   pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
   (r.pieces||[]).forEach(p=>{if(pendingPieces[p.role])pendingPieces[p.role].push({id:p.id,name:p.name});});
@@ -1332,7 +1371,9 @@ function editRecipe(id){
 }
 async function saveRecipe(){
   const name=document.getElementById('rName').value.trim();if(!name){alert('El nombre es obligatorio');return;}
-  const data={name,category:document.getElementById('rCategory').value,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:['comida']};
+  const rCat=document.getElementById('rCategory').value;
+  const rMealTimes=rCat==='bebe'?(getMealTimeCheckboxes().length?getMealTimeCheckboxes():['comida']):['comida'];
+  const data={name,category:rCat,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:rMealTimes};
   const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
   const unknown=lines.filter(l=>!getCategoryForIngredient(l));
   if(unknown.length){
@@ -1383,7 +1424,7 @@ function generateMenu(){
   if(ar.length<3){alert('Añade al menos 3 recetas de adultos con proteína');return;}
   const days=getWeekDays();
   // Detectar qué días ya están fijados (ambas tabs)
-  const fixedDays=new Set(days.filter(d=>currentMenu[d]&&(currentMenu[d].adulto||currentMenu[d].bebe)&&currentMenu[d].locked));
+  const fixedDays=new Set(days.filter(d=>currentMenu[d]&&currentMenu[d].locked));
   const emptyDays=days.filter(d=>!fixedDays.has(d));
   if(!emptyDays.length){renderPlanner();document.getElementById('plannerActions').style.display='block';showToast('Todos los días ya están fijados ✅');return;}
   // Proteínas ya usadas en días fijados
@@ -1409,11 +1450,16 @@ function generateMenu(){
     if(fixedDays.has(day))return; // no tocar fijados
     const protein=assigned[day];
     const ap=ar.filter(r=>r.protein_type===protein);
-    const bp=recipes.filter(r=>r.category==='bebe'&&r.protein_type===protein);
     if(!currentMenu[day])currentMenu[day]={};
-    currentMenu[day].adulto=ap.length?ap[Math.floor(Math.random()*ap.length)]:null;
-    currentMenu[day].bebe=bp.length?bp[Math.floor(Math.random()*bp.length)]:null;
+    currentMenu[day].adulto={recipe:ap.length?ap[Math.floor(Math.random()*ap.length)]:null,skipped:false};
     currentMenu[day].protein=protein;
+    currentMenu[day].bebe={};
+    BEBE_MEALS.forEach(mt=>{
+      const pool=mt==='comida'
+        ?recipes.filter(r=>r.category==='bebe'&&r.protein_type===protein&&(r.meal_time||[]).includes('comida'))
+        :recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
+      currentMenu[day].bebe[mt]={recipe:pool.length?pool[Math.floor(Math.random()*pool.length)]:null,skipped:false};
+    });
   });
   renderPlanner();document.getElementById('plannerActions').style.display='block';showToast('Menú generado ✨');
 }
@@ -1429,32 +1475,69 @@ function renderPlanner(){
   if(!Object.keys(currentMenu).length)return;
   const el=document.getElementById('plannerContent');
   el.innerHTML=Object.keys(currentMenu).sort().map(day=>{
-    const slot=currentMenu[day];const rec=slot[activePlanTab];
+    const slot=currentMenu[day];
     const isSwap=swapMode&&swapDay1===day;
+    let bodyHtml;
+    if(activePlanTab==='adulto'){
+      const a=slot.adulto||{recipe:null,skipped:false};
+      const rec=a.recipe;
+      bodyHtml=`
+        <div class="meal-row">
+          <label class="skip-toggle" title="Fuera de casa"><input type="checkbox" ${a.skipped?'checked':''} onchange="toggleSkip('${day}','adulto',null,this.checked)">🚪 Fuera</label>
+          ${a.skipped?`<span class="meal-skipped">Fuera de casa</span>`:`<span class="meal-name ${rec?'':'meal-empty'}">${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','adulto',null)" title="Cambiar receta completa">🔄</button>`}
+        </div>
+        ${(!a.skipped&&rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','adulto',null,'${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}`;
+    }else{
+      const bebe=slot.bebe||{};
+      bodyHtml=BEBE_MEALS.map(mt=>{
+        const m=bebe[mt]||{recipe:null,skipped:false};
+        const rec=m.recipe;
+        return `<div class="meal-row">
+          <span class="meal-time-label">${MEAL_LABELS[mt]}</span>
+          <label class="skip-toggle" title="No preparado"><input type="checkbox" ${m.skipped?'checked':''} onchange="toggleSkip('${day}','bebe','${mt}',this.checked)"></label>
+          ${m.skipped?`<span class="meal-skipped">No preparado</span>`:`<span class="meal-name ${rec?'':'meal-empty'}">${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','bebe','${mt}')" title="Cambiar receta">🔄</button>`}
+        </div>
+        ${(!m.skipped&&rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','bebe','${mt}','${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}`;
+      }).join('');
+    }
     return `<div class="day-card ${isSwap?'swap-selected':''} ${slot.locked?'day-locked':''}" id="daycard-${day}">
       <div class="day-header">
         <span>${dayLabel(day)}</span>
         <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:11px;opacity:0.8;">${eP(slot.protein)} ${slot.protein}</span>
+          <span style="font-size:11px;opacity:0.8;">${slot.protein?eP(slot.protein)+' '+slot.protein:''}</span>
           <button class="btn-icon" style="color:white;font-size:13px;" onclick="toggleLock('${day}')" title="${slot.locked?'Desfijar':'Fijar'}">${slot.locked?'🔒':'🔓'}</button>
           <button class="btn-icon" style="color:white;font-size:13px;" onclick="startSwap('${day}')" title="Intercambiar día">🔀</button>
         </div>
       </div>
-      <div class="day-body">
-        <div class="meal-row">
-          <span class="meal-name ${rec?'':'meal-empty'}">${rec?rec.name:'Sin receta disponible'}</span>
-          <button class="btn-icon" onclick="openChangeRecipe('${day}')" title="Cambiar receta completa">🔄</button>
-        </div>
-        ${(rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','${activePlanTab}','${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}
-      </div>
+      <div class="day-body">${bodyHtml}</div>
     </div>`;
   }).join('');
 }
+function toggleSkip(day,tab,mealTime,checked){
+  if(!currentMenu[day])return;
+  if(tab==='adulto'){
+    if(!currentMenu[day].adulto)currentMenu[day].adulto={recipe:null,skipped:false};
+    currentMenu[day].adulto.skipped=checked;
+  }else{
+    if(!currentMenu[day].bebe)currentMenu[day].bebe={};
+    if(!currentMenu[day].bebe[mealTime])currentMenu[day].bebe[mealTime]={recipe:null,skipped:false};
+    currentMenu[day].bebe[mealTime].skipped=checked;
+  }
+  renderPlanner();
+}
+function getMealSlot(day,tab,mealTime){
+  if(!currentMenu[day])return null;
+  return tab==='adulto'?currentMenu[day].adulto:(currentMenu[day].bebe||{})[mealTime];
+}
+function setMealSlotRecipe(day,tab,mealTime,recipe){
+  if(tab==='adulto')currentMenu[day].adulto={recipe,skipped:false};
+  else{if(!currentMenu[day].bebe)currentMenu[day].bebe={};currentMenu[day].bebe[mealTime]={recipe,skipped:false};}
+}
 let _swapContext=null,_pendingSwap=null;
-function openSwapPieza(day,tab,pieceId){
-  const rec=currentMenu[day]?.[tab];if(!rec)return;
+function openSwapPieza(day,tab,mealTime,pieceId){
+  const slot=getMealSlot(day,tab,mealTime);const rec=slot?.recipe;if(!rec)return;
   const piece=(rec.pieces||[]).find(p=>p.id===pieceId);if(!piece)return;
-  _swapContext={day,tab,oldPiece:piece,baseRecipe:rec};
+  _swapContext={day,tab,mealTime,oldPiece:piece,baseRecipe:rec};
   document.getElementById('swapPiezaTitle').textContent='Cambiar '+(ROLE_ICON[piece.role]||'')+' '+piece.name;
   document.getElementById('swapPiezaSearch').value='';
   renderSwapPiezaOptions();
@@ -1471,16 +1554,16 @@ function renderSwapPiezaOptions(){
 function selectSwapPieza(newComponentId){
   const newComp=components.find(c=>c.id===newComponentId);if(!newComp||!_swapContext)return;
   closeModal('swapPiezaModal');
-  const{day,tab,oldPiece,baseRecipe}=_swapContext;
+  const{day,tab,mealTime,oldPiece,baseRecipe}=_swapContext;
   const newPieces=baseRecipe.pieces.map(p=>p.id===oldPiece.id?newComp:p);
-  _pendingSwap={day,tab,newPieces,baseRecipe};
+  _pendingSwap={day,tab,mealTime,newPieces,baseRecipe};
   document.getElementById('saveAsRecipeName').value=baseRecipe.name;
   document.getElementById('saveAsRecipeModal').classList.add('open');
 }
 function applySwapOnlyThisWeek(){
   if(!_pendingSwap)return;
-  const{day,tab,newPieces,baseRecipe}=_pendingSwap;
-  currentMenu[day][tab]={...baseRecipe,pieces:newPieces};
+  const{day,tab,mealTime,newPieces,baseRecipe}=_pendingSwap;
+  setMealSlotRecipe(day,tab,mealTime,{...baseRecipe,pieces:newPieces});
   closeModal('saveAsRecipeModal');_pendingSwap=null;
   renderPlanner();
   showToast('Cambiado solo para esta semana ✅');
@@ -1489,15 +1572,15 @@ async function confirmSaveAsNewRecipe(){
   if(!_pendingSwap)return;
   const name=document.getElementById('saveAsRecipeName').value.trim();
   if(!name){alert('Ponle un nombre a la nueva receta');return;}
-  const{day,tab,newPieces,baseRecipe}=_pendingSwap;
-  const data={name,category:baseRecipe.category,protein_type:baseRecipe.protein_type||null,ingredients_list:baseRecipe.ingredients_list||null,preparation_notes:baseRecipe.preparation_notes||null,video_url:baseRecipe.video_url||null,meal_time:['comida']};
+  const{day,tab,mealTime,newPieces,baseRecipe}=_pendingSwap;
+  const data={name,category:baseRecipe.category,protein_type:baseRecipe.protein_type||null,ingredients_list:baseRecipe.ingredients_list||null,preparation_notes:baseRecipe.preparation_notes||null,video_url:baseRecipe.video_url||null,meal_time:baseRecipe.meal_time||['comida']};
   const{data:inserted,error}=await sb.from('recipes').insert(data).select().single();
   if(error||!inserted){alert('No se pudo guardar la receta nueva');return;}
   const pieceIds=newPieces.map(p=>p.id);
   if(pieceIds.length)await sb.from('recipe_components').insert(pieceIds.map(cid=>({recipe_id:inserted.id,component_id:cid})));
   const newRecipe={...inserted,pieces:newPieces};
   recipes.push(newRecipe);
-  currentMenu[day][tab]=newRecipe;
+  setMealSlotRecipe(day,tab,mealTime,newRecipe);
   closeModal('saveAsRecipeModal');_pendingSwap=null;
   renderPlanner();
   showToast('✅ Nueva receta guardada y aplicada');
@@ -1517,17 +1600,19 @@ function startSwap(day){
     renderPlanner();showToast('Días intercambiados 🔀');
   }
 }
-function openChangeRecipe(day){
-  changingDay=day;changingTab=activePlanTab;
-  document.getElementById('changeDayLabel').textContent=day;
+function openChangeRecipe(day,tab,mealTime){
+  changingDay=day;changingTab=tab||activePlanTab;changingMealTime=mealTime||null;
+  document.getElementById('changeDayLabel').textContent=day+(changingMealTime?' · '+MEAL_LABELS[changingMealTime]:'');
   document.getElementById('changeSearch').value='';
   renderChangePicker();document.getElementById('changeRecipeModal').classList.add('open');
 }
 function renderChangePicker(){
   const search=document.getElementById('changeSearch').value.toLowerCase();
   const slot=currentMenu[changingDay];const protein=slot?.protein;
-  const pool=recipes.filter(r=>r.category===changingTab);
-  const sugg=protein?pool.filter(r=>r.protein_type===protein):[];
+  let pool=recipes.filter(r=>r.category===changingTab);
+  if(changingTab==='bebe'&&changingMealTime)pool=pool.filter(r=>(r.meal_time||[]).includes(changingMealTime));
+  const suggestByProtein=changingTab==='adulto'||changingMealTime==='comida';
+  const sugg=(suggestByProtein&&protein)?pool.filter(r=>r.protein_type===protein):[];
   const filtered=search?pool.filter(r=>r.name.toLowerCase().includes(search)):pool;
   document.getElementById('changeSuggestions').innerHTML=sugg.length
     ?sugg.map(r=>`<div class="recipe-option" onclick="selectChange('${r.id}')"><span>${r.name}</span><span class="badge badge-${r.protein_type}">${eP(r.protein_type)}</span></div>`).join('')
@@ -1536,11 +1621,18 @@ function renderChangePicker(){
 }
 function selectChange(recipeId){
   const r=recipes.find(x=>x.id===recipeId);if(!r||!changingDay)return;
-  currentMenu[changingDay][changingTab]=r;if(r.protein_type)currentMenu[changingDay].protein=r.protein_type;
-  // Si cambio adulto, sincronizar Emma con misma proteína
-  if(changingTab==='adulto'&&r.protein_type){
-    const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type);
-    if(bp.length)currentMenu[changingDay].bebe=bp[Math.floor(Math.random()*bp.length)];
+  if(changingTab==='adulto'){
+    currentMenu[changingDay].adulto={recipe:r,skipped:false};
+    if(r.protein_type){
+      currentMenu[changingDay].protein=r.protein_type;
+      // Sincronizar la comida de Emma con la misma proteína
+      const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type&&(x.meal_time||[]).includes('comida'));
+      if(bp.length){if(!currentMenu[changingDay].bebe)currentMenu[changingDay].bebe={};currentMenu[changingDay].bebe.comida={recipe:bp[Math.floor(Math.random()*bp.length)],skipped:false};}
+    }
+  }else{
+    if(!currentMenu[changingDay].bebe)currentMenu[changingDay].bebe={};
+    currentMenu[changingDay].bebe[changingMealTime]={recipe:r,skipped:false};
+    if(changingMealTime==='comida'&&r.protein_type)currentMenu[changingDay].protein=r.protein_type;
   }
   closeModal('changeRecipeModal');renderPlanner();showToast('Receta cambiada ✅');
 }
@@ -1553,8 +1645,13 @@ async function confirmMenu(){
   if(error){alert('Error: '+error.message);return;}
   const rows=[];
   Object.entries(currentMenu).forEach(([day,slot])=>{
-    if(slot.adulto)rows.push({menu_id:menu.id,day_of_week:day,meal_time:'comida',recipe_id:slot.adulto.id,person_type:'adulto'});
-    if(slot.bebe)rows.push({menu_id:menu.id,day_of_week:day,meal_time:'comida',recipe_id:slot.bebe.id,person_type:'bebe'});
+    const a=slot.adulto;
+    if(a&&(a.recipe||a.skipped))rows.push({menu_id:menu.id,day_of_week:day,meal_time:'comida',recipe_id:a.skipped?null:(a.recipe?a.recipe.id:null),person_type:'adulto',skipped:!!a.skipped});
+    const bebe=slot.bebe||{};
+    BEBE_MEALS.forEach(mt=>{
+      const m=bebe[mt];if(!m||(!m.recipe&&!m.skipped))return;
+      rows.push({menu_id:menu.id,day_of_week:day,meal_time:mt,recipe_id:m.skipped?null:(m.recipe?m.recipe.id:null),person_type:'bebe',skipped:!!m.skipped});
+    });
   });
   if(rows.length)await sb.from('weekly_menu_days').insert(rows);
   await generateShoppingList(menu.id,hhId);
@@ -1593,8 +1690,12 @@ async function generateShoppingList(menuId,hhId){
   if(!list)return;currentListId=list.id;
   const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
   const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
-  // Ingredientes de recetas (base + piezas) — deduplicados (Emma + adulto misma línea)
-  const menuRecipes=Object.values(currentMenu).flatMap(slot=>[slot.adulto,slot.bebe].filter(Boolean));
+  // Ingredientes de recetas (base + piezas) — deduplicados, ignorando comidas marcadas como no preparadas
+  const menuRecipes=[];
+  Object.values(currentMenu).forEach(slot=>{
+    if(slot.adulto&&!slot.adulto.skipped&&slot.adulto.recipe)menuRecipes.push(slot.adulto.recipe);
+    Object.values(slot.bebe||{}).forEach(m=>{if(m&&!m.skipped&&m.recipe)menuRecipes.push(m.recipe);});
+  });
   const ingMap=buildIngredientItemMap(menuRecipes,list.id);
   const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
   const recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
@@ -1715,8 +1816,8 @@ async function regenerateList(){
   const basicItems=BASICOS_FIJOS.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   let recipeItems=[];
   if(listRow?.menu_id){
-    const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*)))').eq('menu_id',listRow.menu_id);
-    const menuRecipes=(days||[]).map(d=>d.recipes).filter(Boolean).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
+    const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',listRow.menu_id);
+    const menuRecipes=(days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>d.recipes).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
     const ingMap=buildIngredientItemMap(menuRecipes,currentListId);
     const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
     recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
@@ -1838,13 +1939,19 @@ async function viewFavoritoMenu(idx){
 async function usarFavoritoMenu(idx){
   const menu=window._favoritosData?.[idx];if(!menu)return;
   // Cargar días de ese menú en currentMenu
-  const{data:days}=await sb.from('weekly_menu_days').select('*,recipes(*)').eq('menu_id',menu.id);
+  const{data:days}=await sb.from('weekly_menu_days').select('*,recipes(*, recipe_components(component_id, components(*)))').eq('menu_id',menu.id);
   if(!days?.length){showToast('Este menú no tiene recetas guardadas');return;}
   currentMenu={};
   days.forEach(d=>{
-    if(!currentMenu[d.day_of_week])currentMenu[d.day_of_week]={adulto:null,bebe:null,protein:null,locked:true};
-    if(d.person_type==='adulto'&&d.recipes)currentMenu[d.day_of_week].adulto=d.recipes;
-    if(d.person_type==='bebe'&&d.recipes)currentMenu[d.day_of_week].bebe=d.recipes;
+    if(!currentMenu[d.day_of_week])currentMenu[d.day_of_week]={adulto:{recipe:null,skipped:false},bebe:{},protein:null,locked:true};
+    const rec=d.recipes?{...d.recipes,pieces:(d.recipes.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}:null;
+    if(d.person_type==='adulto'){
+      currentMenu[d.day_of_week].adulto={recipe:rec,skipped:!!d.skipped};
+      if(rec?.protein_type)currentMenu[d.day_of_week].protein=rec.protein_type;
+    }else if(d.person_type==='bebe'){
+      if(!currentMenu[d.day_of_week].bebe)currentMenu[d.day_of_week].bebe={};
+      currentMenu[d.day_of_week].bebe[d.meal_time]={recipe:rec,skipped:!!d.skipped};
+    }
   });
   showToast('✅ Menú cargado en el planificador');
   const btn=document.querySelector('[onclick*="planificador"]');
@@ -1865,8 +1972,9 @@ async function viewHistorialMenu(idx){
   // Agrupar por día
   const byDay={};
   days.forEach(row=>{
-    if(!byDay[row.day_of_week])byDay[row.day_of_week]={};
-    byDay[row.day_of_week][row.person_type]=row.recipes;
+    if(!byDay[row.day_of_week])byDay[row.day_of_week]={adulto:null,bebe:{}};
+    if(row.person_type==='adulto')byDay[row.day_of_week].adulto=row;
+    else byDay[row.day_of_week].bebe[row.meal_time]=row;
   });
   // Orden real: si los días son fechas (formato nuevo) se ordenan cronológicamente sin límite de 7;
   // si son nombres de día (historial antiguo) se ordena a partir de la fecha de inicio de semana.
@@ -1882,13 +1990,19 @@ async function viewHistorialMenu(idx){
   }
   content.innerHTML=orderedDays.map(day=>{
     const slot=byDay[day];
-    const adulto=slot.adulto;const bebe=slot.bebe;
+    const a=slot.adulto;
+    const adultLine=a?(a.skipped?`<span class="meal-skipped">Fuera de casa</span>`:`<span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${(a.recipes?.name||'').replace(/'/g,"\\'")}')">${a.recipes?.name||'—'}</span>`):'';
+    const bebeLines=BEBE_MEALS.map(mt=>{
+      const m=slot.bebe[mt];if(!m)return'';
+      const val=m.skipped?`<span class="meal-skipped">No preparado</span>`:`<span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${(m.recipes?.name||'').replace(/'/g,"\\'")}')">${m.recipes?.name||'—'}</span>`;
+      return `<div class="meal-row"><span class="meal-time-label">${MEAL_LABELS[mt]}</span>${val}</div>`;
+    }).join('');
     return `<div class="day-card" style="margin-bottom:10px;">
-      <div class="day-header"><span>${dayLabel(day)}</span>${adulto?.protein_type?`<span style="font-size:11px;opacity:0.8;">${eP(adulto.protein_type)} ${adulto.protein_type}</span>`:''}
+      <div class="day-header"><span>${dayLabel(day)}</span>${a?.recipes?.protein_type?`<span style="font-size:11px;opacity:0.8;">${eP(a.recipes.protein_type)} ${a.recipes.protein_type}</span>`:''}
       </div>
       <div class="day-body">
-        ${adulto?`<div class="meal-row"><span style="font-size:12px;color:var(--text-muted);">🧑 Adultos</span><span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${adulto.name.replace(/'/g,"\'")}')">${adulto.name}</span></div>`:''}
-        ${bebe?`<div class="meal-row"><span style="font-size:12px;color:var(--text-muted);">👶 Emma</span><span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${bebe.name.replace(/'/g,"\'")}')">${bebe.name}</span></div>`:''}
+        ${a?`<div class="meal-row"><span style="font-size:12px;color:var(--text-muted);width:82px;flex-shrink:0;">🧑 Adultos</span>${adultLine}</div>`:''}
+        ${bebeLines}
       </div>
     </div>`;
   }).join('');
