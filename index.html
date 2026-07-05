@@ -1372,6 +1372,11 @@ function editRecipe(id){
 }
 async function saveRecipe(){
   const name=document.getElementById('rName').value.trim();if(!name){alert('El nombre es obligatorio');return;}
+  // Si quedó texto escrito en algún campo de pieza sin pulsar Enter, lo añadimos igualmente para no perderlo
+  for(const role of Object.keys(PIEZA_INPUT_BY_ROLE)){
+    const inputId=PIEZA_INPUT_BY_ROLE[role];
+    if(document.getElementById(inputId).value.trim())await addPiezaChip(role);
+  }
   const rCat=document.getElementById('rCategory').value;
   const rMealTimes=rCat==='bebe'?(getMealTimeCheckboxes().length?getMealTimeCheckboxes():['comida']):['comida'];
   const data={name,category:rCat,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:rMealTimes};
