@@ -497,7 +497,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="changeRecipeModal">
   <div class="modal">
-    <div class="modal-title">Cambiar — <span id="changeDayLabel" style="color:var(--sage)"></span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" style="margin-bottom:0;">Cambiar — <span id="changeDayLabel" style="color:var(--sage)"></span></div><button class="btn-icon" onclick="closeModal('changeRecipeModal')" title="Cerrar">✕</button></div>
     <div class="search-box" style="margin-bottom:0.75rem;"><span class="search-icon">🔍</span><input type="text" id="changeSearch" placeholder="Buscar en tu recetario..." oninput="renderChangePicker()"></div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:700;">SUGERENCIAS (misma proteína)</div>
     <div id="changeSuggestions"></div>
@@ -509,7 +509,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="manualItemModal">
   <div class="modal">
-    <div class="modal-title">Añadir producto</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" style="margin-bottom:0;">Añadir producto</div><button class="btn-icon" onclick="closeModal('manualItemModal')" title="Cerrar">✕</button></div>
     <div class="form-row"><label>Producto *</label><input type="text" id="manualName" placeholder="Ej: Papel higiénico"></div>
     <div class="form-grid">
       <div class="form-row"><label>Cantidad</label><input type="text" id="manualQty" placeholder="Ej: ×2"></div>
@@ -562,7 +562,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="pantryModal">
   <div class="modal">
-    <div class="modal-title" id="pantryModalTitle">Añadir a la despensa</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" id="pantryModalTitle" style="margin-bottom:0;">Añadir a la despensa</div><button class="btn-icon" onclick="closeModal('pantryModal')" title="Cerrar">✕</button></div>
     <div class="form-row"><label>Producto *</label><input type="text" id="pantryName" placeholder="Ej: Arroz"></div>
     <div class="form-grid">
       <div class="form-row"><label>Cantidad</label><input type="number" id="pantryQty" placeholder="1"></div>
@@ -577,7 +577,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="unknownIngrModal">
   <div class="modal">
-    <div class="modal-title">Categoriza estos ingredientes</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" style="margin-bottom:0;">Categoriza estos ingredientes</div><button class="btn-icon" onclick="closeModal('unknownIngrModal')" title="Cerrar">✕</button></div>
     <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;">No los reconocemos todavía. Asígnales una categoría para que aparezcan bien en la lista de compra.</p>
     <div id="unknownIngrList"></div>
     <div class="modal-footer">
@@ -589,7 +589,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="confirmModal">
   <div class="modal" style="max-width:360px;">
-    <div class="modal-title" id="confirmModalMsg" style="font-size:15px;"></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:0;"><div class="modal-title" id="confirmModalMsg" style="font-size:15px;margin-bottom:0;"></div><button class="btn-icon" onclick="document.getElementById('confirmModalCancelBtn').click()" title="Cerrar">✕</button></div>
     <div class="modal-footer">
       <button class="btn btn-outline" id="confirmModalCancelBtn">Cancelar</button>
       <button class="btn btn-green" id="confirmModalOkBtn">Confirmar</button>
@@ -599,7 +599,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="componentModal">
   <div class="modal">
-    <div class="modal-title" id="componentModalTitle">Nueva pieza</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" id="componentModalTitle" style="margin-bottom:0;">Nueva pieza</div><button class="btn-icon" onclick="closeModal('componentModal')" title="Cerrar">✕</button></div>
     <div class="form-row"><label>Nombre *</label><input type="text" id="cName" placeholder="Ej: Pollo a la plancha"></div>
     <div class="form-grid">
       <div class="form-row"><label>Categoría</label><select id="cCategory"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
@@ -633,7 +633,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="swapPiezaModal">
   <div class="modal">
-    <div class="modal-title" id="swapPiezaTitle">Cambiar pieza</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" id="swapPiezaTitle" style="margin-bottom:0;">Cambiar pieza</div><button class="btn-icon" onclick="closeModal('swapPiezaModal')" title="Cerrar">✕</button></div>
     <div class="search-box" style="margin-bottom:0.75rem;"><span class="search-icon">🔍</span><input type="text" id="swapPiezaSearch" oninput="renderSwapPiezaOptions()" placeholder="Buscar..."></div>
     <div id="swapPiezaOptions" style="max-height:280px;overflow-y:auto;"></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('swapPiezaModal')">Cancelar</button></div>
@@ -642,7 +642,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 
 <div class="modal-overlay" id="saveAsRecipeModal">
   <div class="modal" style="max-width:420px;">
-    <div class="modal-title">¿Guardar esta combinación?</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;"><div class="modal-title" style="margin-bottom:0;">¿Guardar esta combinación?</div><button class="btn-icon" onclick="_pendingSwap=null;closeModal('saveAsRecipeModal')" title="Cerrar">✕</button></div>
     <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">Cambiaste una pieza. Puedes guardar esta combinación como receta nueva para reusarla, o aplicarla solo a esta semana.</p>
     <div class="form-row"><label>Nombre de la nueva receta</label><input type="text" id="saveAsRecipeName"></div>
     <div class="modal-footer" style="flex-wrap:wrap;">
