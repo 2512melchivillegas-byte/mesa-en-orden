@@ -1011,6 +1011,46 @@ async function loadProfile(){
 
 // NAVIGATION
 let _menuTab='recetas',_histTab='historial';
+function persistNav(){
+  try{
+    const activePage=document.querySelector('.page.active');
+    localStorage.setItem('meo_nav',JSON.stringify({
+      pageId:activePage?activePage.id:'pageRecetas',
+      histTab:_histTab,
+      recetarioView:document.getElementById('viewTabPiezas')?.classList.contains('active')?'piezas':'recetas',
+      activeRecipeTab,
+      activeComponentCategory,
+      activePlanTab
+    }));
+  }catch(e){}
+}
+function restoreNav(){
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem('meo_nav')||'null');}catch(e){}
+  if(!saved)return;
+  const navBtns=document.querySelectorAll('.bottom-nav .nav-item');
+  if(saved.pageId==='pagePlanificador')showMenuTab('planificador',navBtns[1]);
+  else if(saved.pageId==='pageCompra')showPage('pageCompra',navBtns[2]);
+  else if(saved.pageId==='pageDespensa')showPage('pageDespensa',navBtns[3]);
+  else if(saved.pageId==='pageHistorial'){_histTab=saved.histTab||'historial';showHistorialTab(_histTab,navBtns[4]);}
+  // 'pageRecetas' ya es el estado inicial por defecto del HTML, no hace falta recrearlo
+  if(saved.activeRecipeTab&&saved.activeRecipeTab!=='adulto'){
+    const btn=[...document.querySelectorAll('#recetasSubview .tabs .tab')].find(t=>(t.getAttribute('onclick')||'').includes(`switchRecipeTab('${saved.activeRecipeTab}'`));
+    if(btn)switchRecipeTab(saved.activeRecipeTab,btn);
+  }
+  if(saved.recetarioView==='piezas'){
+    switchRecetarioView('piezas');
+    if(saved.activeComponentCategory&&saved.activeComponentCategory!=='adulto'){
+      const catBtn=[...document.querySelectorAll('#piezasSubview .tabs .tab')].find(t=>(t.getAttribute('onclick')||'').includes(`switchComponentCategory('${saved.activeComponentCategory}'`));
+      if(catBtn)switchComponentCategory(saved.activeComponentCategory,catBtn);
+    }
+  }
+  if(saved.activePlanTab&&saved.activePlanTab!=='adulto'){
+    const btn=[...document.querySelectorAll('#pagePlanificador .tabs .tab')].find(t=>(t.getAttribute('onclick')||'').includes(`switchPlanTab('${saved.activePlanTab}'`));
+    if(btn)switchPlanTab(saved.activePlanTab,btn);
+  }
+}
+window.addEventListener('DOMContentLoaded',()=>{try{restoreNav();}catch(e){console.error('restoreNav error',e);}});
 function showMenuTab(tab,btn){
   _menuTab=tab;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1018,6 +1058,7 @@ function showMenuTab(tab,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   if(tab==='recetas'){document.getElementById('pageRecetas').classList.add('active');}
   else{document.getElementById('pagePlanificador').classList.add('active');}
+  persistNav();
 }
 function showHistorialTab(tab,btn){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1025,6 +1066,7 @@ function showHistorialTab(tab,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('pageHistorial').classList.add('active');
   switchHistTab(_histTab,document.getElementById(_histTab==='historial'?'tabHistorial':'tabFavoritos'));
+  persistNav();
 }
 function switchHistTab(tab,btn){
   _histTab=tab;
@@ -1034,6 +1076,7 @@ function switchHistTab(tab,btn){
   document.getElementById('favoritosContent').style.display=tab==='favoritos'?'':'none';
   if(tab==='historial')loadHistorial();
   else loadFavoritos();
+  persistNav();
 }
 function showPage(pageId,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1042,6 +1085,7 @@ function showPage(pageId,btn){
   if(pageId==='pageCompra')loadShoppingList();
   if(pageId==='pageHistorial')loadHistorial();
   if(pageId==='pageDespensa')renderPantry();
+  persistNav();
 }
 
 // PIEZAS / COMPONENTES REUTILIZABLES
@@ -1055,6 +1099,7 @@ function switchRecetarioView(view){
   const btn=document.getElementById('recetarioAddBtn');
   btn.onclick=view==='recetas'?openAddRecipe:openAddComponent;
   if(view==='piezas')loadComponents();
+  persistNav();
 }
 async function loadComponents(){
   const{data}=await sb.from('components').select('*').order('name');
@@ -1071,6 +1116,7 @@ function switchComponentCategory(cat,btn){
   btn.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
   renderComponents();
+  persistNav();
 }
 function renderComponents(){
   const search=(document.getElementById('componentSearch')?.value||'').toLowerCase();
@@ -1278,7 +1324,7 @@ function renderRecipes(){
   </div>`).join('');
 }
 function eP(p){return{pollo:'🍗',carne:'🥩',cerdo:'🐖',pescado:'🐟',vegetal:'🥦',huevo:'🥚'}[p]||'';}
-function switchRecipeTab(tab,btn){activeRecipeTab=tab;document.querySelectorAll('#pageRecetas .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderRecipes();}
+function switchRecipeTab(tab,btn){activeRecipeTab=tab;document.querySelectorAll('#pageRecetas .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderRecipes();persistNav();}
 function filterProtein(protein,btn){activeProtein=protein;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderRecipes();}
 function openAddRecipe(){
   editingRecipeId=null;document.getElementById('recipeModalTitle').textContent='Nueva receta';
@@ -1424,7 +1470,7 @@ async function deleteRecipe(id){if(!await appConfirm('¿Eliminar esta receta?'))
 // PLANIFICADOR
 function selectWeekStart(day,btn){weekStart=day;document.querySelectorAll('#weekDayPicker .week-day-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
 function selectWeekLength(len,btn){weekLength=len;document.querySelectorAll('#weekLengthPicker .week-day-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
-function switchPlanTab(tab,btn){activePlanTab=tab;document.querySelectorAll('#pagePlanificador .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderPlanner();}
+function switchPlanTab(tab,btn){activePlanTab=tab;document.querySelectorAll('#pagePlanificador .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderPlanner();persistNav();}
 function generateMenu(){
   const ar=recipes.filter(r=>r.category==='adulto'&&r.protein_type);
   if(ar.length<3){alert('Añade al menos 3 recetas de adultos con proteína');return;}
