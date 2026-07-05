@@ -1101,9 +1101,11 @@ async function saveComponent(){
   const name=document.getElementById('cName').value.trim();
   if(!name){alert('El nombre es obligatorio');return;}
   const role=document.getElementById('cRole').value;
+  const category=document.getElementById('cCategory').value;
+  const dup=components.find(c=>c.id!==editingComponentId&&c.role===role&&(c.category||'adulto')===category&&c.name.toLowerCase()===name.toLowerCase());
+  if(dup){alert(`Ya existe una pieza "${dup.name}" de ese mismo tipo y categoría. Usa esa en vez de crear otra, o edítala si quieres cambiarla.`);return;}
   const data={
-    name,role,
-    category:document.getElementById('cCategory').value,
+    name,role,category,
     protein_subtype:role==='proteina'?(document.getElementById('cProteinSubtype').value||null):null,
     ingredients_list:document.getElementById('cIngredients').value.trim()||null,
     is_active:true
@@ -1125,10 +1127,22 @@ async function saveComponent(){
   await doSaveComponent(data);
 }
 async function doSaveComponent(data){
-  if(editingComponentId){await sb.from('components').update(data).eq('id',editingComponentId);showToast('Pieza actualizada ✅');}
-  else{await sb.from('components').insert(data);showToast('Pieza añadida ✅');}
+  const isNew=!editingComponentId;
+  if(editingComponentId){await sb.from('components').update(data).eq('id',editingComponentId);showToast('✅ Pieza actualizada');}
+  else{await sb.from('components').insert(data);showToast(`✅ "${data.name}" añadida a tu biblioteca de piezas`);}
   closeModal('componentModal');
-  loadComponents();
+  if(isNew){
+    // Aseguramos que la pieza recien creada sea visible: sin filtro de tipo, sin busqueda, en su categoria
+    activeComponentRole='';
+    const searchEl=document.getElementById('componentSearch');if(searchEl)searchEl.value='';
+    document.querySelectorAll('#piezasSubview .filters .filter-btn').forEach(b=>b.classList.remove('active'));
+    const allBtn=document.querySelector('#piezasSubview .filters .filter-btn');if(allBtn)allBtn.classList.add('active');
+    if(activeComponentCategory!==data.category){
+      activeComponentCategory=data.category;
+      document.querySelectorAll('#piezasSubview .tabs .tab').forEach(t=>t.classList.toggle('active',t.textContent.includes(data.category==='bebe'?'Emma':'Adultos')));
+    }
+  }
+  await loadComponents();
 }
 async function resolveComponentId(name,role){
   name=(name||'').trim();
@@ -1546,7 +1560,10 @@ function getNextWeekday(dayName){
 function buildIngredientLines(r){
   const lines=[];
   if(r.ingredients_list)lines.push(...r.ingredients_list.split('\n'));
-  (r.pieces||[]).forEach(p=>{if(p.ingredients_list)lines.push(...p.ingredients_list.split('\n'));});
+  (r.pieces||[]).forEach(p=>{
+    if(p.ingredients_list)lines.push(...p.ingredients_list.split('\n'));
+    else if(p.name)lines.push(p.name);
+  });
   return lines;
 }
 function buildIngredientItemMap(recipesList,listId){
