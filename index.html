@@ -478,6 +478,12 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <button class="btn-icon" onclick="closeModal('addToMenuModal')">✕</button>
     </div>
     <div class="form-row" style="margin-top:0.75rem;">
+      <label>Días de la semana en curso</label>
+      <select id="addToMenuLengthSelect" onchange="onAddToMenuLengthChange()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:var(--white);">
+        <option value="5">5 días</option><option value="6">6 días</option><option value="7">7 días</option><option value="8">8 días</option><option value="9">9 días</option><option value="10">10 días</option><option value="11">11 días</option><option value="12">12 días</option><option value="13">13 días</option><option value="14">14 días</option><option value="15">15 días</option>
+      </select>
+    </div>
+    <div class="form-row">
       <label>Día</label>
       <select id="addToMenuDay" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;background:var(--white);"></select>
     </div>
@@ -1340,10 +1346,8 @@ function openAddToMenu(recipeId){
   const r=recipes.find(x=>x.id===recipeId);if(!r)return;
   _addToMenuRecipeId=recipeId;
   document.getElementById('addToMenuTitle').textContent='📅 Añadir "'+r.name+'" al menú';
-  const days=getWeekDays();
-  const sel=document.getElementById('addToMenuDay');
-  if(!days.length){alert('Primero configura la semana en Menú y genera al menos un día.');return;}
-  sel.innerHTML=days.map(d=>`<option value="${d}">${dayLabel(d)}</option>`).join('');
+  document.getElementById('addToMenuLengthSelect').value=String(weekLength);
+  refreshAddToMenuDayOptions();
   const mtWrap=document.getElementById('addToMenuMealTimeWrap');
   if(r.category==='bebe'){
     const opts=(r.meal_time&&r.meal_time.length?r.meal_time:['comida']).filter(mt=>BEBE_MEALS.includes(mt));
@@ -1351,6 +1355,19 @@ function openAddToMenu(recipeId){
     mtWrap.style.display='block';
   }else{mtWrap.style.display='none';}
   document.getElementById('addToMenuModal').classList.add('open');
+}
+function refreshAddToMenuDayOptions(){
+  const days=getWeekDays();
+  const sel=document.getElementById('addToMenuDay');
+  sel.innerHTML=days.map(d=>`<option value="${d}">${dayLabel(d)}</option>`).join('');
+}
+function onAddToMenuLengthChange(){
+  weekLength=parseInt(document.getElementById('addToMenuLengthSelect').value)||7;
+  // Mantener sincronizado el selector de la pestaña Menú si existe en pantalla
+  document.querySelectorAll('#weekLengthPicker .week-day-btn').forEach(b=>{
+    b.classList.toggle('selected',b.getAttribute('onclick')===`selectWeekLength(${weekLength},this)`);
+  });
+  refreshAddToMenuDayOptions();
 }
 function confirmAddToMenu(){
   const r=recipes.find(x=>x.id===_addToMenuRecipeId);if(!r)return;
