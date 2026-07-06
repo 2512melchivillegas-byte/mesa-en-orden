@@ -339,6 +339,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <div class="page-title">Lista de compra</div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-outline btn-sm" onclick="openAddOcasionales()" title="Añadir ocasionales del mes">🗓️</button>
+          <button class="btn btn-outline btn-sm" onclick="openAddFrutas()" title="Añadir frutas de la semana">🍊</button>
           <button class="btn btn-outline btn-sm" onclick="addManualItem()">+ Añadir</button>
           <button class="btn btn-outline btn-sm" onclick="regenerateList()" title="Regenerar lista">🔄</button>
         </div>
@@ -604,6 +605,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="tabs" style="margin-bottom:0.6rem;">
         <button class="tab active" id="habitualTabSemanal" onclick="switchHabitualType('semanal',this)">🔁 Semanales</button>
         <button class="tab" id="habitualTabOcasional" onclick="switchHabitualType('ocasional',this)">🗓️ Ocasionales del mes</button>
+        <button class="tab" id="habitualTabFruta" onclick="switchHabitualType('fruta',this)">🍊 Frutas</button>
       </div>
       <p id="habitualTabHint" style="font-size:12px;color:var(--text-muted);margin-bottom:0.75rem;">Estos productos se añaden solos a la lista de compra cada semana, sin importar el menú.</p>
       <div class="search-box" style="margin-bottom:0.6rem;"><span class="search-icon">🔍</span><input type="text" id="habitualSearch" placeholder="Buscar producto..." oninput="renderHabituales()"></div>
@@ -640,10 +642,25 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><div class="modal-title" style="margin-bottom:0;">🗓️ Añadir ocasionales</div><button class="btn-icon" onclick="closeModal('ocasionalesPickModal')" title="Cerrar">✕</button></div>
     <p class="text-muted" style="margin-bottom:0.75rem;">Marca los que necesites esta vez. No se añaden solos cada semana.</p>
+    <div class="search-box" style="margin-bottom:0.6rem;"><span class="search-icon">🔍</span><input type="text" id="ocasionalesSearch" placeholder="Buscar producto..." oninput="filterOcasionalesPick()"></div>
     <div id="ocasionalesPickList" style="max-height:320px;overflow-y:auto;"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('ocasionalesPickModal')">Cancelar</button>
       <button class="btn btn-green" onclick="confirmAddOcasionales()">Añadir seleccionados</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal elegir frutas para esta compra -->
+<div class="modal-overlay" id="frutasPickModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><div class="modal-title" style="margin-bottom:0;">🍊 Añadir frutas</div><button class="btn-icon" onclick="closeModal('frutasPickModal')" title="Cerrar">✕</button></div>
+    <p class="text-muted" style="margin-bottom:0.75rem;">Marca las que toquen esta semana.</p>
+    <div class="search-box" style="margin-bottom:0.6rem;"><span class="search-icon">🔍</span><input type="text" id="frutasSearch" placeholder="Buscar fruta..." oninput="filterFrutasPick()"></div>
+    <div id="frutasPickList" style="max-height:320px;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('frutasPickModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmAddFrutas()">Añadir seleccionadas</button>
     </div>
   </div>
 </div>
@@ -811,13 +828,23 @@ const CAT_OPTIONS=['Frescos','Carnicería y pescadería','Refrigerados','Congela
 function catSelect(id,val='Despensa'){
   return `<select id="${id}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;">${CAT_OPTIONS.map(c=>`<option${c===val?' selected':''}>${c}</option>`).join('')}</select>`;
 }
+// Normalización de nombres de ingredientes: quita acentos/mayúsculas y aplica sinónimos comunes
+// para evitar duplicados en la lista de compra (patata/papa, aguacate/palta, etc.)
+const ING_SYNONYMS={'papa':'patata','papas':'patatas','zapallo':'calabaza','choclo':'maiz','palta':'aguacate'};
+function normIngKey(s){
+  let t=normTxt(s).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+  t=t.split(' ').map(w=>ING_SYNONYMS[w]||w).join(' ');
+  return t;
+}
 async function loadIngredientDict(){
   const{data}=await sb.from('ingredients').select('name,category');
-  if(data)data.forEach(i=>{if(i.name&&i.category)ingredientDict[i.name.toLowerCase().trim()]=i.category;});
+  if(data)data.forEach(i=>{if(i.name&&i.category){ingredientDict[i.name.toLowerCase().trim()]=i.category;ingredientDict[normIngKey(i.name)]=i.category;}});
 }
 function getCategoryForIngredient(name){
   const key=name.toLowerCase().trim();
   if(ingredientDict[key])return ingredientDict[key];
+  const nkey=normIngKey(name);
+  if(ingredientDict[nkey])return ingredientDict[nkey];
   const kw=[
     {k:['pollo','pechuga','muslo','pavo','ternera','carne','lomo','cerdo','cordero','vacuno','salchicha','chorizo','bacon','baicon','jamón','salmón','merluza','atún','bacalao','gambas','langostino','pescado','marisco'],c:'Carnicería y pescadería'},
     {k:['leche','queso','yogur','nata','mantequilla','crema'],c:'Refrigerados'},
@@ -831,7 +858,7 @@ function getCategoryForIngredient(name){
     {k:['champú','gel','desodorante','crema','enjuague','compresa','protector','pañito'],c:'Higiene personal'},
     {k:['jabón','detergente','limpiahogar','limpiapisos','limpiabaños','cristal','papel higiénico','papel cocina','papel aluminio','esponja','bolsa','ambientador','fairy'],c:'Limpieza'},
   ];
-  for(const{k,c}of kw){if(k.some(w=>key.includes(w)))return c;}
+  for(const{k,c}of kw){if(k.some(w=>nkey.includes(normTxt(w))))return c;}
   return null;
 }
 const CAT_EMOJI={'Frescos':'🍊','Carnicería y pescadería':'🥩','Refrigerados':'🧀','Congelados':'❄️','Desayuno y panadería':'🥣','Despensa':'🫙','Bebidas':'🥤','Snacks':'🍿','Bebé':'🍼','Higiene personal':'🧴','Limpieza':'🧹'};
@@ -930,10 +957,10 @@ async function resetPantry(){
 
 // PRODUCTOS HABITUALES (semanales fijos / ocasionales del mes) — independientes de las recetas
 let householdBasicsAll=[],activeHabitualType='semanal',editingHabitualId=null;
-const HABITUAL_HINTS={semanal:'Estos productos se añaden solos a la lista de compra cada semana, sin importar el menú.',ocasional:'Estos NO se añaden solos. Guárdalos aquí para poder añadirlos con un toque cuando los necesites (botón 🗓️ en Lista de compra).'};
+const HABITUAL_HINTS={semanal:'Estos productos se añaden solos a la lista de compra cada semana, sin importar el menú.',ocasional:'Estos NO se añaden solos. Guárdalos aquí para poder añadirlos con un toque cuando los necesites (botón 🗓️ en Lista de compra).',fruta:'Tu lista de frutas habituales. Cada semana eliges cuáles tocan con el botón 🍊 en Lista de compra — no se añaden solas.'};
 async function loadHouseholdBasicsAll(){
   if(!currentHousehold?.id)return;
-  const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).in('type',['semanal','ocasional']).order('name');
+  const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).in('type',['semanal','ocasional','fruta']).order('name');
   householdBasicsAll=data||[];
 }
 async function openHabitualesModal(){
@@ -955,7 +982,7 @@ function resetHabitualForm(){
   editingHabitualId=null;
   document.getElementById('habitualName').value='';
   document.getElementById('habitualQty').value='';
-  document.getElementById('habitualCat').value='Despensa';
+  document.getElementById('habitualCat').value=activeHabitualType==='fruta'?'Frescos':'Despensa';
   document.getElementById('habitualSaveBtn').textContent='+ Añadir';
 }
 function renderHabituales(){
@@ -1015,35 +1042,83 @@ async function getWeeklyBasics(){
   }
   return BASICOS_FIJOS;
 }
-let _ocasionalesToAdd=[];
+let _ocasionalesAll=[];
 async function openAddOcasionales(){
   if(!currentHousehold?.id)return;
   const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).eq('type','ocasional').eq('active',true).order('name');
-  const items=data||[];
-  const el=document.getElementById('ocasionalesPickList');
-  if(!items.length){
-    el.innerHTML='<p class="text-muted">Todavía no tienes productos ocasionales guardados. Añádelos desde Ajustes → 🛒 Productos habituales.</p>';
-  }else{
-    el.innerHTML=items.map(b=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">
-      <input type="checkbox" value="${b.id}" class="ocasional-check">
-      <span style="font-size:14px;">${CAT_EMOJI[b.category]||'📦'}</span>
-      <span style="flex:1;">${b.name}${b.unit?' <span style="color:var(--text-muted);">· '+b.unit+'</span>':''}</span>
-    </label>`).join('');
-  }
-  _ocasionalesToAdd=items;
+  _ocasionalesAll=data||[];
+  const search=document.getElementById('ocasionalesSearch');if(search)search.value='';
+  renderOcasionalesPick(_ocasionalesAll);
   document.getElementById('ocasionalesPickModal').classList.add('open');
+}
+function renderOcasionalesPick(items){
+  const el=document.getElementById('ocasionalesPickList');
+  if(!_ocasionalesAll.length){
+    el.innerHTML='<p class="text-muted">Todavía no tienes productos ocasionales guardados. Añádelos desde Ajustes → 🛒 Productos habituales.</p>';
+    return;
+  }
+  if(!items.length){el.innerHTML='<p class="text-muted">Sin resultados.</p>';return;}
+  el.innerHTML=items.map(b=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">
+    <input type="checkbox" value="${b.id}" class="ocasional-check">
+    <span style="font-size:14px;">${CAT_EMOJI[b.category]||'📦'}</span>
+    <span style="flex:1;">${b.name}${b.unit?' <span style="color:var(--text-muted);">· '+b.unit+'</span>':''}</span>
+  </label>`).join('');
+}
+function filterOcasionalesPick(){
+  const q=normTxt(document.getElementById('ocasionalesSearch').value);
+  const filtered=q?_ocasionalesAll.filter(b=>normTxt(b.name).includes(q)):_ocasionalesAll;
+  renderOcasionalesPick(filtered);
 }
 async function confirmAddOcasionales(){
   if(!currentListId){showToast('Primero confirma un menú para tener una lista activa');return;}
   const checked=[...document.querySelectorAll('.ocasional-check:checked')].map(c=>c.value);
   if(!checked.length){closeModal('ocasionalesPickModal');return;}
-  const existingNames=new Set(_lastShopItems.map(i=>i.ingredient_name.toLowerCase()));
-  const toInsert=_ocasionalesToAdd.filter(b=>checked.includes(b.id)&&!existingNames.has(b.name.toLowerCase()))
+  const existingKeys=new Set(_lastShopItems.map(i=>normIngKey(i.ingredient_name)));
+  const toInsert=_ocasionalesAll.filter(b=>checked.includes(b.id)&&!existingKeys.has(normIngKey(b.name)))
     .map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.unit||'',category:b.category||'Despensa',checked:false}));
   if(toInsert.length)await sb.from('shopping_list_items').insert(toInsert);
   closeModal('ocasionalesPickModal');
   loadShoppingList();
   showToast(toInsert.length?`✅ ${toInsert.length} producto(s) añadido(s)`:'Ya estaban en la lista');
+}
+let _frutasAll=[];
+async function openAddFrutas(){
+  if(!currentHousehold?.id)return;
+  const{data}=await sb.from('household_basics').select('*').eq('household_id',currentHousehold.id).eq('type','fruta').eq('active',true).order('name');
+  _frutasAll=data||[];
+  const search=document.getElementById('frutasSearch');if(search)search.value='';
+  renderFrutasPick(_frutasAll);
+  document.getElementById('frutasPickModal').classList.add('open');
+}
+function renderFrutasPick(items){
+  const el=document.getElementById('frutasPickList');
+  if(!_frutasAll.length){
+    el.innerHTML='<p class="text-muted">Todavía no tienes frutas guardadas. Añádelas desde Ajustes → 🛒 Productos habituales → 🍊 Frutas.</p>';
+    return;
+  }
+  if(!items.length){el.innerHTML='<p class="text-muted">Sin resultados.</p>';return;}
+  el.innerHTML=items.map(b=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">
+    <input type="checkbox" value="${b.id}" class="fruta-check">
+    <span style="font-size:14px;">${CAT_EMOJI[b.category]||'🍊'}</span>
+    <span style="flex:1;">${b.name}${b.unit?' <span style="color:var(--text-muted);">· '+b.unit+'</span>':''}</span>
+  </label>`).join('');
+}
+function filterFrutasPick(){
+  const q=normTxt(document.getElementById('frutasSearch').value);
+  const filtered=q?_frutasAll.filter(b=>normTxt(b.name).includes(q)):_frutasAll;
+  renderFrutasPick(filtered);
+}
+async function confirmAddFrutas(){
+  if(!currentListId){showToast('Primero confirma un menú para tener una lista activa');return;}
+  const checked=[...document.querySelectorAll('.fruta-check:checked')].map(c=>c.value);
+  if(!checked.length){closeModal('frutasPickModal');return;}
+  const existingKeys=new Set(_lastShopItems.map(i=>normIngKey(i.ingredient_name)));
+  const toInsert=_frutasAll.filter(b=>checked.includes(b.id)&&!existingKeys.has(normIngKey(b.name)))
+    .map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.unit||'',category:b.category||'Frescos',checked:false}));
+  if(toInsert.length)await sb.from('shopping_list_items').insert(toInsert);
+  closeModal('frutasPickModal');
+  loadShoppingList();
+  showToast(toInsert.length?`✅ ${toInsert.length} fruta(s) añadida(s)`:'Ya estaban en la lista');
 }
 function getWeekDays(){
   const start=new Date(getNextWeekday(weekStart)+'T00:00:00');
@@ -1935,7 +2010,7 @@ function buildIngredientItemMap(recipesList,listId){
   recipesList.forEach(r=>{
     buildIngredientLines(r).forEach(line=>{
       const t=line.trim();if(!t)return;
-      const key=t.toLowerCase();
+      const key=normIngKey(t);
       if(!ingMap[key]){const cat=getCategoryForIngredient(t)||'Despensa';ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};}
     });
   });
@@ -1944,9 +2019,9 @@ function buildIngredientItemMap(recipesList,listId){
 async function generateShoppingList(menuId,hhId){
   const{data:list}=await sb.from('shopping_lists').insert({menu_id:menuId,user_id:currentUser.id,household_id:hhId}).select().single();
   if(!list)return;currentListId=list.id;
-  const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
+  const pantryNames=pantryItems.map(p=>normIngKey(p.ingredient_name));
   const weeklyBasics=await getWeeklyBasics();
-  const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(normIngKey(b.name))).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   // Ingredientes de recetas (base + piezas) — deduplicados, ignorando comidas marcadas como no preparadas
   const menuRecipes=[];
   Object.values(currentMenu).forEach(slot=>{
@@ -1954,8 +2029,8 @@ async function generateShoppingList(menuId,hhId){
     Object.values(slot.bebe||{}).forEach(m=>{if(m&&!m.skipped&&m.recipe)menuRecipes.push(m.recipe);});
   });
   const ingMap=buildIngredientItemMap(menuRecipes,list.id);
-  const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
-  const recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
+  const basicKeys=new Set(basicItems.map(b=>normIngKey(b.ingredient_name)));
+  const recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!basicKeys.has(normIngKey(i.ingredient_name)));
   const allItems=[...basicItems,...recipeItems];
   if(allItems.length)await sb.from('shopping_list_items').insert(allItems);
 }
@@ -2059,7 +2134,7 @@ async function deleteListItem(itemId){await sb.from('shopping_list_items').delet
 function addManualItem(){document.getElementById('manualItemModal').classList.add('open');}
 async function saveManualItem(){
   const name=document.getElementById('manualName').value.trim();if(!name||!currentListId)return;
-  const exists=_lastShopItems.some(i=>i.ingredient_name.trim().toLowerCase()===name.toLowerCase());
+  const exists=_lastShopItems.some(i=>normIngKey(i.ingredient_name)===normIngKey(name));
   if(exists){alert('"'+name+'" ya está en la lista de compra.');return;}
   await sb.from('shopping_list_items').insert({list_id:currentListId,ingredient_name:name,unit:document.getElementById('manualQty').value.trim()||null,category:document.getElementById('manualCat').value,checked:false});
   closeModal('manualItemModal');document.getElementById('manualName').value='';document.getElementById('manualQty').value='';
@@ -2069,16 +2144,16 @@ async function regenerateList(){
   if(!currentListId)return;if(!await appConfirm('¿Regenerar la lista? Se perderán precios y cambios manuales.'))return;
   const{data:listRow}=await sb.from('shopping_lists').select('menu_id').eq('id',currentListId).single();
   await sb.from('shopping_list_items').delete().eq('list_id',currentListId);
-  const pantryNames=pantryItems.map(p=>p.ingredient_name.toLowerCase());
+  const pantryNames=pantryItems.map(p=>normIngKey(p.ingredient_name));
   const weeklyBasics=await getWeeklyBasics();
-  const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(b.name.toLowerCase())).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(normIngKey(b.name))).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   let recipeItems=[];
   if(listRow?.menu_id){
     const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',listRow.menu_id);
     const menuRecipes=(days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>d.recipes).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
     const ingMap=buildIngredientItemMap(menuRecipes,currentListId);
-    const basicKeys=new Set(basicItems.map(b=>b.ingredient_name.toLowerCase()));
-    recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(i.ingredient_name.toLowerCase())&&!basicKeys.has(i.ingredient_name.toLowerCase()));
+    const basicKeys=new Set(basicItems.map(b=>normIngKey(b.ingredient_name)));
+    recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!basicKeys.has(normIngKey(i.ingredient_name)));
   }
   const allItems=[...basicItems,...recipeItems];
   if(allItems.length)await sb.from('shopping_list_items').insert(allItems);
