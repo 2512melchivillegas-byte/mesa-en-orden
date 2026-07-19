@@ -841,13 +841,16 @@ const CAT_OPTIONS=['Frescos','Carnicería y pescadería','Refrigerados','Congela
 function catSelect(id,val='Despensa'){
   return `<select id="${id}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;">${CAT_OPTIONS.map(c=>`<option${c===val?' selected':''}>${c}</option>`).join('')}</select>`;
 }
-// Normalización de nombres de ingredientes: quita acentos/mayúsculas y aplica sinónimos comunes
-// para evitar duplicados en la lista de compra (patata/papa, aguacate/palta, etc.)
+// Normalización de nombres de ingredientes: quita acentos/mayúsculas, aplica sinónimos comunes
+// (patata/papa, aguacate/palta, etc.), quita palabras de enlace y ordena las palabras alfabéticamente
+// para que "carne en filete" y "filete de carne" se reconozcan como el mismo ingrediente sin duplicarse.
 const ING_SYNONYMS={'papa':'patata','papas':'patatas','zapallo':'calabaza','choclo':'maiz','palta':'aguacate'};
+const ING_STOPWORDS=new Set(['de','del','la','el','los','las','en','con','y','al','a','un','una','sin','para']);
 function normIngKey(s){
   let t=normTxt(s).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
-  t=t.split(' ').map(w=>ING_SYNONYMS[w]||w).join(' ');
-  return t;
+  const words=t.split(' ').filter(Boolean).filter(w=>!ING_STOPWORDS.has(w)).map(w=>ING_SYNONYMS[w]||w);
+  words.sort();
+  return words.join(' ');
 }
 async function loadIngredientDict(){
   const{data}=await sb.from('ingredients').select('name,category');
