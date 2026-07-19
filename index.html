@@ -2030,8 +2030,24 @@ async function confirmMenu(){
   const weekStartDate=getNextWeekday(weekStart);
   const hhId=currentHousehold?.id||null;
   const proteinDist={};Object.entries(currentMenu).forEach(([d,s])=>{proteinDist[d]=s.protein;});
-  const{data:menu,error}=await sb.from('weekly_menus').insert({user_id:currentUser.id,household_id:hhId,week_start:weekStartDate,status:'confirmed',protein_distribution:proteinDist}).select().single();
-  if(error){alert('Error: '+error.message);return;}
+  // ¿Ya hay un menú confirmado para esta misma semana? Si es así, lo actualizamos en vez de
+  // crear uno nuevo — así la lista de compra existente se sincroniza (se añaden los ingredientes
+  // que falten) en vez de duplicarse y perder precios/chequeados.
+  let existQuery=sb.from('weekly_menus').select('id').eq('status','confirmed').eq('week_start',weekStartDate);
+  existQuery=hhId?existQuery.eq('household_id',hhId):existQuery.eq('user_id',currentUser.id);
+  const{data:existing}=await existQuery.limit(1);
+  let menu;
+  const isUpdate=!!existing?.length;
+  if(isUpdate){
+    const{data:updated,error}=await sb.from('weekly_menus').update({protein_distribution:proteinDist}).eq('id',existing[0].id).select().single();
+    if(error){alert('Error: '+error.message);return;}
+    menu=updated;
+    await sb.from('weekly_menu_days').delete().eq('menu_id',menu.id);
+  }else{
+    const{data:inserted,error}=await sb.from('weekly_menus').insert({user_id:currentUser.id,household_id:hhId,week_start:weekStartDate,status:'confirmed',protein_distribution:proteinDist}).select().single();
+    if(error){alert('Error: '+error.message);return;}
+    menu=inserted;
+  }
   const rows=[];
   Object.entries(currentMenu).forEach(([day,slot])=>{
     const a=slot.adulto;
@@ -2043,9 +2059,36 @@ async function confirmMenu(){
     });
   });
   if(rows.length)await sb.from('weekly_menu_days').insert(rows);
-  await generateShoppingList(menu.id,hhId);
-  showToast('✅ Menú confirmado');
+  if(isUpdate){
+    await syncShoppingListForMenu(menu.id,hhId);
+    showToast('✅ Menú actualizado — lista sincronizada');
+  }else{
+    await generateShoppingList(menu.id,hhId);
+    showToast('✅ Menú confirmado');
+  }
   setTimeout(()=>document.querySelector('[onclick*="pageCompra"]').click(),800);
+}
+// Sincroniza la lista de compra existente de un menú ya confirmado: añade los ingredientes/básicos
+// que falten según el menú actualizado, sin tocar los ítems ya existentes (precios, marcados, etc. se conservan).
+// No elimina ítems que ya no apliquen — para eso sigue existiendo el botón 🔄 Regenerar.
+async function syncShoppingListForMenu(menuId,hhId){
+  const{data:lists}=await sb.from('shopping_lists').select('id').eq('menu_id',menuId).order('created_at',{ascending:false}).limit(1);
+  const listId=lists?.[0]?.id;
+  if(!listId){await generateShoppingList(menuId,hhId);return;}
+  currentListId=listId;
+  const{data:existingItems}=await sb.from('shopping_list_items').select('ingredient_name').eq('list_id',listId);
+  const existingKeys=new Set((existingItems||[]).map(i=>normIngKey(i.ingredient_name)));
+  const pantryNames=pantryItems.map(p=>normIngKey(p.ingredient_name));
+  const weeklyBasics=await getWeeklyBasics();
+  const newBasics=weeklyBasics.filter(b=>!pantryNames.includes(normIngKey(b.name))&&!existingKeys.has(normIngKey(b.name))).map(b=>({list_id:listId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
+  const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',menuId);
+  const menuRecipes=(days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>d.recipes).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
+  const ingMap=buildIngredientItemMap(menuRecipes,listId);
+  const newBasicKeys=new Set(newBasics.map(b=>normIngKey(b.ingredient_name)));
+  const newRecipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!existingKeys.has(normIngKey(i.ingredient_name))&&!newBasicKeys.has(normIngKey(i.ingredient_name)));
+  const toInsert=[...newBasics,...newRecipeItems];
+  if(toInsert.length)await sb.from('shopping_list_items').insert(toInsert);
+  loadShoppingList();
 }
 function getNextWeekday(dayName){
   const target=DOW_SUN.indexOf(dayName);const today=new Date();const current=today.getDay();
