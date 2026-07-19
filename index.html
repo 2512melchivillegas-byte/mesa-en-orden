@@ -1886,7 +1886,7 @@ function renderPlanner(){
       bodyHtml=`
         <div class="meal-row">
           <label class="skip-toggle" title="Fuera de casa"><input type="checkbox" ${a.skipped?'checked':''} onchange="toggleSkip('${day}','adulto',null,this.checked)">🚪 Fuera</label>
-          ${a.skipped?`<span class="meal-skipped">Fuera de casa</span>`:`<span class="meal-name ${rec?'':'meal-empty'}">${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','adulto',null)" title="Cambiar receta completa">🔄</button>`}
+          ${a.skipped?`<span class="meal-skipped">Fuera de casa</span>`:`<span class="meal-name ${rec?'':'meal-empty'}" ${rec?`onclick="viewRecipe('${rec.id}')" style="cursor:pointer;" title="Ver receta"`:''}>${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','adulto',null)" title="Cambiar receta completa">🔄</button>`}
         </div>
         ${(!a.skipped&&rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','adulto',null,'${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}`;
     }else{
@@ -1897,7 +1897,7 @@ function renderPlanner(){
         return `<div class="meal-row">
           <span class="meal-time-label">${MEAL_LABELS[mt]}</span>
           <label class="skip-toggle" title="No preparado"><input type="checkbox" ${m.skipped?'checked':''} onchange="toggleSkip('${day}','bebe','${mt}',this.checked)"></label>
-          ${m.skipped?`<span class="meal-skipped">No preparado</span>`:`<span class="meal-name ${rec?'':'meal-empty'}">${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','bebe','${mt}')" title="Cambiar receta">🔄</button>`}
+          ${m.skipped?`<span class="meal-skipped">No preparado</span>`:`<span class="meal-name ${rec?'':'meal-empty'}" ${rec?`onclick="viewRecipe('${rec.id}')" style="cursor:pointer;" title="Ver receta"`:''}>${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','bebe','${mt}')" title="Cambiar receta">🔄</button>`}
         </div>
         ${(!m.skipped&&rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','bebe','${mt}','${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}`;
       }).join('');
