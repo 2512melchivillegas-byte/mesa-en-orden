@@ -864,6 +864,60 @@ function getCategoryForIngredient(name){
 const CAT_EMOJI={'Frescos':'🍊','Carnicería y pescadería':'🥩','Refrigerados':'🧀','Congelados':'❄️','Desayuno y panadería':'🥣','Despensa':'🫙','Bebidas':'🥤','Snacks':'🍿','Bebé':'🍼','Higiene personal':'🧴','Limpieza':'🧹'};
 let plantillaExtras=[];
 function normTxt(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+// Equivalencias de comida entre versión adulto y versión bebé, para relacionar el menú de Emma
+// con lo que comemos nosotros (ej: espaguetis/macarrones -> pasta, champiñones -> champiñones)
+const FOOD_EQUIV_WORDS={
+  'espagueti':'pasta','espaguetis':'pasta','macarron':'pasta','macarrones':'pasta','tallarin':'pasta','tallarines':'pasta','lazos':'pasta','fideos':'pasta','pasta':'pasta','noodle':'pasta','noodles':'pasta',
+  'champiñon':'champinon','champiñones':'champinon','champinon':'champinon','champinones':'champinon',
+  'patata':'patata','patatas':'patata','papa':'patata','papas':'patata',
+  'calabacin':'calabacin','calabacines':'calabacin',
+  'zanahoria':'zanahoria','zanahorias':'zanahoria',
+  'pollo':'pollo','pechuga':'pollo','muslo':'pollo',
+  'ternera':'ternera','vacuno':'ternera','carne':'carne',
+  'cerdo':'cerdo','lomo':'cerdo',
+  'pescado':'pescado','merluza':'pescado','salmon':'pescado','bacalao':'pescado','atun':'pescado',
+  'arroz':'arroz','brocoli':'brocoli',
+  'tomate':'tomate','tomates':'tomate','calabaza':'calabaza',
+  'lenteja':'lenteja','lentejas':'lenteja','garbanzo':'garbanzo','garbanzos':'garbanzo',
+  'judia':'judia','judias':'judia','huevo':'huevo','huevos':'huevo',
+  'espinaca':'espinaca','espinacas':'espinaca','puerro':'puerro','puerros':'puerro',
+};
+const FOOD_EQUIV_STOPWORDS=new Set(['de','la','el','los','las','con','y','al','en','un','una','del','sin','para']);
+function tokenizeFood(text){
+  const norm=normTxt(text).replace(/[^a-z0-9\s]/g,' ');
+  return norm.split(/\s+/).filter(Boolean).filter(w=>w.length>2&&!FOOD_EQUIV_STOPWORDS.has(w)).map(w=>FOOD_EQUIV_WORDS[w]||w);
+}
+function getRecipeMatchTokens(r){
+  const tokens=new Set();
+  (r.pieces||[]).forEach(p=>{
+    if(p.name)tokenizeFood(p.name).forEach(t=>tokens.add(t));
+    if(p.ingredients_list)tokenizeFood(p.ingredients_list).forEach(t=>tokens.add(t));
+  });
+  if(r.ingredients_list)tokenizeFood(r.ingredients_list).forEach(t=>tokens.add(t));
+  return tokens;
+}
+// Elige la mejor receta de comida de Emma en base a los ingredientes/piezas que comparte
+// con la receta de adultos (en vez de elegir al azar solo por tipo de proteína)
+function pickBestBebeComida(adultRecipe){
+  const pool=recipes.filter(x=>x.category==='bebe'&&(x.meal_time||[]).includes('comida'));
+  if(!pool.length)return null;
+  if(!adultRecipe)return pool[Math.floor(Math.random()*pool.length)];
+  const adultTokens=getRecipeMatchTokens(adultRecipe);
+  let bestScore=-1,best=[];
+  pool.forEach(r=>{
+    let score=0;
+    getRecipeMatchTokens(r).forEach(t=>{if(adultTokens.has(t))score++;});
+    if(adultRecipe.protein_type&&r.protein_type===adultRecipe.protein_type)score+=0.5;
+    if(score>bestScore){bestScore=score;best=[r];}
+    else if(score===bestScore)best.push(r);
+  });
+  if(bestScore<=0){
+    const byProtein=adultRecipe.protein_type?pool.filter(r=>r.protein_type===adultRecipe.protein_type):[];
+    const fb=byProtein.length?byProtein:pool;
+    return fb[Math.floor(Math.random()*fb.length)];
+  }
+  return best[Math.floor(Math.random()*best.length)];
+}
 async function openPlantillaDespensa(){
   plantillaExtras=[];
   if(currentHousehold?.id){
@@ -1646,8 +1700,8 @@ function confirmAddToMenu(){
     if(r.protein_type){
       currentMenu[day].protein=r.protein_type;
       if(!currentMenu[day].bebe.comida){
-        const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type&&(x.meal_time||[]).includes('comida'));
-        if(bp.length)currentMenu[day].bebe.comida={recipe:bp[Math.floor(Math.random()*bp.length)],skipped:false};
+        const match=pickBestBebeComida(r);
+        if(match)currentMenu[day].bebe.comida={recipe:match,skipped:false};
       }
     }
   }
@@ -1781,14 +1835,18 @@ function generateMenu(){
     if(fixedDays.has(day))return; // no tocar fijados
     const protein=assigned[day];
     const ap=ar.filter(r=>r.protein_type===protein);
+    const adultoRecipe=ap.length?ap[Math.floor(Math.random()*ap.length)]:null;
     if(!currentMenu[day])currentMenu[day]={};
-    currentMenu[day].adulto={recipe:ap.length?ap[Math.floor(Math.random()*ap.length)]:null,skipped:false};
+    currentMenu[day].adulto={recipe:adultoRecipe,skipped:false};
     currentMenu[day].protein=protein;
     currentMenu[day].bebe={};
     BEBE_MEALS.forEach(mt=>{
-      const pool=mt==='comida'
-        ?recipes.filter(r=>r.category==='bebe'&&r.protein_type===protein&&(r.meal_time||[]).includes('comida'))
-        :recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
+      if(mt==='comida'){
+        const match=pickBestBebeComida(adultoRecipe);
+        currentMenu[day].bebe[mt]={recipe:match,skipped:false};
+        return;
+      }
+      const pool=recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
       currentMenu[day].bebe[mt]={recipe:pool.length?pool[Math.floor(Math.random()*pool.length)]:null,skipped:false};
     });
   });
@@ -1957,8 +2015,8 @@ function selectChange(recipeId){
     if(r.protein_type){
       currentMenu[changingDay].protein=r.protein_type;
       // Sincronizar la comida de Emma con la misma proteína
-      const bp=recipes.filter(x=>x.category==='bebe'&&x.protein_type===r.protein_type&&(x.meal_time||[]).includes('comida'));
-      if(bp.length){if(!currentMenu[changingDay].bebe)currentMenu[changingDay].bebe={};currentMenu[changingDay].bebe.comida={recipe:bp[Math.floor(Math.random()*bp.length)],skipped:false};}
+      const match=pickBestBebeComida(r);
+      if(match){if(!currentMenu[changingDay].bebe)currentMenu[changingDay].bebe={};currentMenu[changingDay].bebe.comida={recipe:match,skipped:false};}
     }
   }else{
     if(!currentMenu[changingDay].bebe)currentMenu[changingDay].bebe={};
