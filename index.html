@@ -1454,10 +1454,10 @@ function switchComponentCategory(cat,btn){
   persistNav();
 }
 function renderComponents(){
-  const search=(document.getElementById('componentSearch')?.value||'').toLowerCase();
+  const search=normTxt(document.getElementById('componentSearch')?.value||'');
   let f=components.filter(c=>(c.category||'adulto')===activeComponentCategory);
   if(activeComponentRole)f=f.filter(c=>c.role===activeComponentRole);
-  if(search)f=f.filter(c=>c.name.toLowerCase().includes(search));
+  if(search)f=f.filter(c=>normTxt(c.name).includes(search));
   const el=document.getElementById('componentsList');
   if(!f.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🧩</div><p>No hay piezas. Pulsa <strong>+ Añadir</strong></p></div>`;return;}
   el.innerHTML=f.map(c=>`<div class="card">
@@ -1625,11 +1625,11 @@ function recipeMissingIngredients(r){
   return !(r.ingredients_list&&r.ingredients_list.trim())&&!(r.pieces&&r.pieces.length);
 }
 function renderRecipes(){
-  const search=(document.getElementById('recipeSearch')?.value||'').toLowerCase();
+  const search=normTxt(document.getElementById('recipeSearch')?.value||'');
   let f=recipes.filter(r=>r.category===activeRecipeTab);
   if(activeProtein==='__missing__')f=f.filter(recipeMissingIngredients);
   else if(activeProtein)f=f.filter(r=>r.protein_type===activeProtein);
-  if(search)f=f.filter(r=>r.name.toLowerCase().includes(search));
+  if(search)f=f.filter(r=>normTxt(r.name).includes(search));
   const el=document.getElementById('recipesList');
   if(!f.length){
     el.innerHTML=activeProtein==='__missing__'
@@ -2009,13 +2009,13 @@ function openChangeRecipe(day,tab,mealTime){
   renderChangePicker();document.getElementById('changeRecipeModal').classList.add('open');
 }
 function renderChangePicker(){
-  const search=document.getElementById('changeSearch').value.toLowerCase();
+  const search=normTxt(document.getElementById('changeSearch').value);
   const slot=currentMenu[changingDay];const protein=slot?.protein;
   let pool=recipes.filter(r=>r.category===changingTab);
   if(changingTab==='bebe'&&changingMealTime)pool=pool.filter(r=>(r.meal_time||[]).includes(changingMealTime));
   const suggestByProtein=changingTab==='adulto'||changingMealTime==='comida';
   const sugg=(suggestByProtein&&protein)?pool.filter(r=>r.protein_type===protein):[];
-  const filtered=search?pool.filter(r=>r.name.toLowerCase().includes(search)):pool;
+  const filtered=search?pool.filter(r=>normTxt(r.name).includes(search)):pool;
   document.getElementById('changeSuggestions').innerHTML=sugg.length
     ?sugg.map(r=>`<div class="recipe-option" onclick="selectChange('${r.id}')"><span>${r.name}</span><span class="badge badge-${r.protein_type}">${eP(r.protein_type)}</span></div>`).join('')
     :'<div class="text-muted">Sin sugerencias para esta proteína</div>';
@@ -2182,7 +2182,7 @@ function clearSearch(inputId,callback){
   if(el){el.value='';el.focus();}
   if(callback)callback('');
 }
-function onShopSearch(v){_shopSearch=v.toLowerCase();renderCurrentList();}
+function onShopSearch(v){_shopSearch=normTxt(v);renderCurrentList();}
 function onShopFilter(cat,btn){_shopFilter=cat;document.querySelectorAll('#shopControls .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderCurrentList();}
 let _lastShopItems=[];
 function renderCurrentList(){renderShoppingList(_lastShopItems);}
@@ -2214,7 +2214,7 @@ function renderShoppingList(items){
   fill.className='progress-fill'+(pct>100?' over':pct>80?' warning':'');
   // Filtros
   let filtered=items;
-  if(_shopSearch)filtered=filtered.filter(i=>i.ingredient_name.toLowerCase().includes(_shopSearch));
+  if(_shopSearch)filtered=filtered.filter(i=>normTxt(i.ingredient_name).includes(_shopSearch));
   if(_shopFilter)filtered=filtered.filter(i=>(i.category||'Otros')===_shopFilter);
   const CATS=['Frescos','Carnicería y pescadería','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
   const byCategory={};
