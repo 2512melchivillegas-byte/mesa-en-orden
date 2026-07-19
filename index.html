@@ -556,6 +556,19 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   </div>
 </div>
 
+<div class="modal-overlay" id="categoryPickerModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" style="margin-bottom:0;">Cambiar categoría</div><button class="btn-icon" onclick="closeModal('categoryPickerModal')" title="Cerrar">✕</button></div>
+    <div class="form-row"><label id="categoryPickerItemName" style="font-weight:600;"></label></div>
+    <div class="form-row"><select id="categoryPickerSelect"><option value="Frescos">🍊 Frescos</option><option value="Carnicería y pescadería">🥩 Carnicería y pescadería</option><option value="Refrigerados">🧀 Refrigerados</option><option value="Congelados">❄️ Congelados</option><option value="Desayuno y panadería">🥣 Desayuno y panadería</option><option value="Despensa">🫙 Despensa</option><option value="Bebidas">🥤 Bebidas</option><option value="Snacks">🍿 Snacks</option><option value="Bebé">🍼 Bebé</option><option value="Higiene personal">🧴 Higiene personal</option><option value="Limpieza">🧹 Limpieza</option></select></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Se recuerda para las próximas semanas.</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('categoryPickerModal')">Cancelar</button>
+      <button class="btn btn-green" onclick="saveCategoryPick()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal plantilla despensa -->
 <div class="modal-overlay" id="plantillaModal" style="align-items:flex-start;padding-top:1rem;">
   <div class="modal" style="padding:0;display:flex;flex-direction:column;max-height:90vh;width:100%;max-width:480px;">
@@ -2208,6 +2221,7 @@ function renderShoppingList(items){
         <input class="price-input" type="number" min="1" step="1" value="${q}" onchange="updateQtyCount('${item.id}',this.value)" style="width:40px;text-align:center;" title="Cantidad">
         <input class="price-input" type="number" step="0.01" placeholder="€/u" value="${item.price||''}" onchange="updatePrice('${item.id}',this.value)" style="width:54px;" title="Precio">
         ${total?`<span style="font-size:12px;font-weight:600;color:var(--dark-green);min-width:38px;text-align:right;">${total}</span>`:''}
+        <button class="btn-icon" style="font-size:14px;padding:6px;" onclick="openCategoryPicker('${item.id}')" title="Cambiar categoría">🏷️</button>
         <button class="btn-icon" style="font-size:14px;padding:6px;" onclick="deleteListItem('${item.id}')">✕</button>
       </div>
     </div>`;
@@ -2232,6 +2246,33 @@ async function updateQtyCount(itemId,count){
 }
 async function updatePrice(itemId,price){await sb.from('shopping_list_items').update({price:price?parseFloat(price):null}).eq('id',itemId);loadShoppingList();}
 async function deleteListItem(itemId){await sb.from('shopping_list_items').delete().eq('id',itemId);loadShoppingList();}
+let _categoryPickerItemId=null;
+function openCategoryPicker(itemId){
+  const item=_lastShopItems.find(i=>i.id===itemId);if(!item)return;
+  _categoryPickerItemId=itemId;
+  document.getElementById('categoryPickerItemName').textContent=item.ingredient_name;
+  document.getElementById('categoryPickerSelect').value=item.category||'Despensa';
+  document.getElementById('categoryPickerModal').classList.add('open');
+}
+async function saveCategoryPick(){
+  if(!_categoryPickerItemId)return;
+  const newCat=document.getElementById('categoryPickerSelect').value;
+  await updateItemCategory(_categoryPickerItemId,newCat);
+  closeModal('categoryPickerModal');
+  _categoryPickerItemId=null;
+}
+// Actualiza la categoría de este ítem y la recuerda en el diccionario de ingredientes
+// para que la próxima vez que aparezca (en cualquier semana) se categorice bien solo.
+async function updateItemCategory(itemId,newCat){
+  const item=_lastShopItems.find(i=>i.id===itemId);if(!item)return;
+  await sb.from('shopping_list_items').update({category:newCat}).eq('id',itemId);
+  const name=item.ingredient_name.trim();
+  ingredientDict[name.toLowerCase().trim()]=newCat;
+  ingredientDict[normIngKey(name)]=newCat;
+  await sb.from('ingredients').upsert([{name,category:newCat,active:true}],{onConflict:'name'});
+  showToast('Categoría actualizada ✅');
+  loadShoppingList();
+}
 function addManualItem(){document.getElementById('manualItemModal').classList.add('open');}
 async function saveManualItem(){
   const name=document.getElementById('manualName').value.trim();if(!name||!currentListId)return;
