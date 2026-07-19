@@ -351,6 +351,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <span class="budget-limit" id="budgetLimit">/ 170€</span>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="budgetProgress" style="width:0%"></div></div>
+        <div id="storeSubtotals" style="font-size:12px;color:var(--text-muted);margin-top:6px;display:none;"></div>
       </div>
       <!-- Buscador y filtro -->
       <div id="shopControls" style="display:none;flex-direction:column;gap:6px;margin-bottom:0.75rem;">
@@ -372,6 +373,17 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <button class="filter-btn" onclick="onShopFilter('Bebé',this)" title="Bebé">🍼 Bebé</button>
           <button class="filter-btn" onclick="onShopFilter('Higiene personal',this)" title="Higiene personal">🧴 Higiene</button>
           <button class="filter-btn" onclick="onShopFilter('Limpieza',this)" title="Limpieza">🧹 Limpieza</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:13px;color:var(--text-muted);white-space:nowrap;">🏪 Comprando en:</label>
+          <select id="currentStoreSelect" onchange="setCurrentShoppingStore(this.value)" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;">
+            <option>Mercadona</option>
+            <option>Ametller</option>
+            <option>Alcampo</option>
+            <option>JR</option>
+            <option>Bonpreu</option>
+            <option>Lidl</option>
+          </select>
         </div>
       </div>
       <div id="shoppingContent"><div class="empty"><div class="empty-icon">🛒</div><p>Confirma un menú para generar la lista</p></div></div>
@@ -795,6 +807,7 @@ let weekStart='Lunes',weekLength=7;
 let swapMode=false,swapDay1=null;
 let changingDay=null,changingTab=null,changingMealTime=null;
 let weekBudget=170;
+let currentShoppingStore=localStorage.getItem('meo_currentStore')||'Mercadona';
 const BEBE_MEALS=['desayuno','media_manana','comida','merienda','cena'];
 const MEAL_LABELS={desayuno:'🌅 Desayuno',media_manana:'🍎 Media mañana',comida:'🍽️ Comida',merienda:'🥐 Merienda',cena:'🌙 Cena'};
 const MEAL_CHECKBOX_IDS=[['rMealDesayuno','desayuno'],['rMealMediaManana','media_manana'],['rMealComida','comida'],['rMealMerienda','merienda'],['rMealCena','cena']];
@@ -2215,6 +2228,19 @@ function renderShoppingList(items){
   document.getElementById('budgetLimit').textContent='/ '+weekBudget+'€';
   const fill=document.getElementById('budgetProgress');fill.style.width=pct+'%';
   fill.className='progress-fill'+(pct>100?' over':pct>80?' warning':'');
+  // Desglose por súper (solo ítems marcados y con precio, agrupados por dónde se marcaron)
+  const byStore={};
+  checkedItems.forEach(i=>{const t=calcTotal(i);if(t>0){const s=i.store||'Mercadona';byStore[s]=(byStore[s]||0)+t;}});
+  const storeKeys=Object.keys(byStore);
+  const storeEl=document.getElementById('storeSubtotals');
+  if(storeKeys.length>1){
+    storeEl.style.display='block';
+    storeEl.textContent=storeKeys.map(s=>`${s}: ${byStore[s].toFixed(2)}€`).join('  ·  ');
+  }else{
+    storeEl.style.display='none';
+  }
+  const storeSel=document.getElementById('currentStoreSelect');
+  if(storeSel&&storeSel.value!==currentShoppingStore)storeSel.value=currentShoppingStore;
   // Filtros
   let filtered=items;
   if(_shopSearch)filtered=filtered.filter(i=>normTxt(i.ingredient_name).includes(_shopSearch));
@@ -2258,7 +2284,16 @@ function renderShoppingList(items){
   }
   h+='</div>';el.innerHTML=h;
 }
-async function toggleItem(itemId,checked){await sb.from('shopping_list_items').update({checked}).eq('id',itemId);loadShoppingList();}
+async function toggleItem(itemId,checked){
+  const update={checked};
+  if(checked)update.store=currentShoppingStore;
+  await sb.from('shopping_list_items').update(update).eq('id',itemId);
+  loadShoppingList();
+}
+function setCurrentShoppingStore(v){
+  currentShoppingStore=v;
+  localStorage.setItem('meo_currentStore',v);
+}
 async function updateQtyCount(itemId,count){
   const n=parseInt(count)||1;
   await sb.from('shopping_list_items').update({qty_count:n}).eq('id',itemId);
