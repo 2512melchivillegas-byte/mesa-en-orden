@@ -330,7 +330,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="swap-hint" id="swapHint">Selecciona otro día para intercambiar 🔀</div>
       <div id="plannerContent"><div class="empty"><div class="empty-icon">📅</div><p>Configura tu semana y pulsa <strong>Generar</strong></p></div></div>
       <div id="plannerActions" style="display:none;margin-top:1rem;">
-        <button class="btn btn-coral btn-block" onclick="confirmMenu()">✓ Confirmar y crear lista de compra</button>
+        <button class="btn btn-coral btn-block" id="confirmMenuBtn" onclick="confirmMenu()">✓ Confirmar y crear lista de compra</button>
       </div>
     </div>
 
@@ -1718,7 +1718,7 @@ function confirmAddToMenu(){
       }
     }
   }
-  document.getElementById('plannerActions').style.display='block';
+  showPlannerActions();
   closeModal('addToMenuModal');
   showToast('Receta fijada en '+day+' 🔒 — Generar respetará este día');
 }
@@ -1824,7 +1824,7 @@ function generateMenu(){
   // Detectar qué días ya están fijados (ambas tabs)
   const fixedDays=new Set(days.filter(d=>currentMenu[d]&&currentMenu[d].locked));
   const emptyDays=days.filter(d=>!fixedDays.has(d));
-  if(!emptyDays.length){renderPlanner();document.getElementById('plannerActions').style.display='block';showToast('Todos los días ya están fijados ✅');return;}
+  if(!emptyDays.length){renderPlanner();showPlannerActions();showToast('Todos los días ya están fijados ✅');return;}
   // Proteínas ya usadas en días fijados
   const usedProteins={};
   days.forEach(d=>{if(currentMenu[d]?.locked&&currentMenu[d].protein)usedProteins[d]=currentMenu[d].protein;});
@@ -1863,7 +1863,7 @@ function generateMenu(){
       currentMenu[day].bebe[mt]={recipe:pool.length?pool[Math.floor(Math.random()*pool.length)]:null,skipped:false};
     });
   });
-  renderPlanner();document.getElementById('plannerActions').style.display='block';showToast('Menú generado ✨');
+  renderPlanner();showPlannerActions();showToast('Menú generado ✨');
 }
 async function resetMenu(){
   if(!await appConfirm('¿Seguro que quieres empezar de cero?'))return;
@@ -2038,6 +2038,22 @@ function selectChange(recipeId){
   }
   closeModal('changeRecipeModal');renderPlanner();showToast('Receta cambiada ✅');
 }
+// Muestra el bloque de acciones del planificador y ajusta el texto del botón:
+// "Confirmar y crear lista" la primera vez, "Actualizar lista de compra" si esta semana ya estaba confirmada.
+function showPlannerActions(){
+  document.getElementById('plannerActions').style.display='block';
+  updateConfirmButtonLabel();
+}
+async function updateConfirmButtonLabel(){
+  const btn=document.getElementById('confirmMenuBtn');if(!btn)return;
+  if(!currentUser){btn.textContent='✓ Confirmar y crear lista de compra';return;}
+  const weekStartDate=getNextWeekday(weekStart);
+  const hhId=currentHousehold?.id||null;
+  let q=sb.from('weekly_menus').select('id').eq('status','confirmed').eq('week_start',weekStartDate);
+  q=hhId?q.eq('household_id',hhId):q.eq('user_id',currentUser.id);
+  const{data}=await q.limit(1);
+  btn.textContent=(data&&data.length)?'🔄 Actualizar lista de compra':'✓ Confirmar y crear lista de compra';
+}
 async function confirmMenu(){
   if(!currentUser)return;
   const weekStartDate=getNextWeekday(weekStart);
@@ -2079,6 +2095,7 @@ async function confirmMenu(){
     await generateShoppingList(menu.id,hhId);
     showToast('✅ Menú confirmado');
   }
+  updateConfirmButtonLabel();
   setTimeout(()=>document.querySelector('[onclick*="pageCompra"]').click(),800);
 }
 // Sincroniza la lista de compra existente de un menú ya confirmado: añade los ingredientes/básicos
@@ -2374,7 +2391,7 @@ async function usarHistorialMenu(idx){
   showToast('✅ Menú cargado en el planificador');
   const btn=document.querySelector('[onclick*="planificador"]');
   if(btn)btn.click();
-  setTimeout(()=>{renderPlanner();document.getElementById('plannerActions').style.display='block';},100);
+  setTimeout(()=>{renderPlanner();showPlannerActions();},100);
 }
 async function toggleFavorito(idx){
   const menu=window._historialData?.[idx];if(!menu)return;
@@ -2446,7 +2463,7 @@ async function loadCurrentConfirmedMenu(){
   const{data}=await q;
   if(!data?.length)return;
   const ok=await cargarMenuEnPlanificador(data[0],{silent:true});
-  if(ok){document.getElementById('plannerActions').style.display='block';renderPlanner();}
+  if(ok){showPlannerActions();renderPlanner();}
 }
 async function usarFavoritoMenu(idx){
   const menu=window._favoritosData?.[idx];if(!menu)return;
@@ -2455,7 +2472,7 @@ async function usarFavoritoMenu(idx){
   showToast('✅ Menú cargado en el planificador');
   const btn=document.querySelector('[onclick*="planificador"]');
   if(btn)btn.click();
-  setTimeout(()=>{renderPlanner();document.getElementById('plannerActions').style.display='block';},100);
+  setTimeout(()=>{renderPlanner();showPlannerActions();},100);
 }
 async function viewHistorialMenu(idx){
   const menuObj=window._historialData?.[idx];
