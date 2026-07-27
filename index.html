@@ -48,7 +48,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .page { display:none; }
 .page.active { display:block; }
 .page-title { font-size:20px; font-weight:700; color:var(--dark-green); }
-.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; row-gap:8px; }
 .card { background:var(--white); border-radius:var(--radius); padding:1rem; margin-bottom:0.75rem; border:1px solid var(--border); }
 .card-title { font-size:15px; font-weight:600; color:var(--text); }
 .card-header { display:flex; align-items:flex-start; justify-content:space-between; }
@@ -68,9 +68,9 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .btn-coral { background:var(--coral); color:white; }
 .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
 .btn-outline:hover { background:var(--beige); }
-.btn-sm { padding:5px 10px; font-size:12px; }
-.btn-icon { background:none; border:none; cursor:pointer; padding:4px 6px; border-radius:6px; font-size:15px; }
-.btn-icon:hover { background:var(--beige); }
+.btn-sm { padding:8px 12px; font-size:12px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; }
+.btn-icon { background:none; border:none; cursor:pointer; padding:6px; border-radius:8px; font-size:15px; min-width:40px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; }
+.btn-icon:hover, .btn-icon:active { background:var(--beige); }
 .btn-block { width:100%; padding:13px; font-size:15px; }
 .tabs { display:flex; margin-bottom:1rem; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); }
 .tab { flex:1; padding:9px; background:var(--white); border:none; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-muted); font-family:inherit; }
@@ -151,6 +151,9 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .loading { text-align:center; padding:2rem; color:var(--text-muted); font-size:14px; }
 .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--dark-green); color:white; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:600; z-index:300; opacity:0; transition:opacity 0.3s; pointer-events:none; white-space:nowrap; }
 .toast.show { opacity:1; }
+.toast-undo { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--dark-green); color:white; padding:8px 8px 8px 18px; border-radius:24px; font-size:13px; font-weight:600; z-index:300; opacity:0; transition:opacity 0.3s; pointer-events:none; white-space:nowrap; display:flex; align-items:center; gap:10px; }
+.toast-undo.show { opacity:1; pointer-events:auto; }
+.toast-undo-btn { background:rgba(255,255,255,0.18); color:white; border:none; border-radius:18px; padding:8px 16px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; min-height:36px; }
 .text-muted { color:var(--text-muted); font-size:13px; }
 .mt-1 { margin-top:0.5rem; }
 .divider { height:1px; background:var(--border); margin:1rem 0; }
@@ -784,6 +787,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="toast-undo" id="undoToast"><span id="undoToastMsg"></span><button class="toast-undo-btn" id="undoToastBtn">Deshacer</button></div>
 
 <!-- Modal ver menú historial -->
 <div class="modal-overlay" id="historialMenuModal">
@@ -2310,7 +2314,14 @@ async function updateQtyCount(itemId,count){
   loadShoppingList();
 }
 async function updatePrice(itemId,price){await sb.from('shopping_list_items').update({price:price?parseFloat(price):null}).eq('id',itemId);loadShoppingList();}
-async function deleteListItem(itemId){await sb.from('shopping_list_items').delete().eq('id',itemId);loadShoppingList();}
+function deleteListItem(itemId){
+  const item=_lastShopItems.find(i=>i.id===itemId);if(!item)return;
+  renderShoppingList(_lastShopItems.filter(i=>i.id!==itemId));
+  showUndoToast('Producto eliminado',
+    ()=>{loadShoppingList();},
+    async()=>{await sb.from('shopping_list_items').delete().eq('id',itemId);}
+  );
+}
 let _categoryPickerItemId=null;
 function openCategoryPicker(itemId){
   const item=_lastShopItems.find(i=>i.id===itemId);if(!item)return;
@@ -2376,7 +2387,7 @@ async function loadPantry(){
 function renderPantry(){
   const el=document.getElementById('pantryList');
   if(!pantryItems.length){el.innerHTML='<div class="empty"><div class="empty-icon">🏠</div><p>La despensa está vacía</p></div>';return;}
-  el.innerHTML='<div class="card">'+pantryItems.map(item=>`<div class="pantry-item"><span>${item.ingredient_name}${item.quantity?' — '+item.quantity+' '+(item.unit||''):''}</span><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="editPantryItem('${item.id}')">✏️</button><button class="btn-icon" onclick="deletePantryItem('${item.id}')">🗑️</button></div></div>`).join('')+'</div>';
+  el.innerHTML='<div class="card">'+pantryItems.map(item=>`<div class="pantry-item"><span>${item.ingredient_name}${item.quantity?' — '+item.quantity+' '+(item.unit||''):''}</span><div style="display:flex;gap:8px;"><button class="btn-icon" onclick="editPantryItem('${item.id}')">✏️</button><button class="btn-icon" onclick="deletePantryItem('${item.id}')">🗑️</button></div></div>`).join('')+'</div>';
 }
 function openAddPantry(){
   editingPantryId=null;document.getElementById('pantryModalTitle').textContent='Añadir a la despensa';
@@ -2402,7 +2413,15 @@ async function savePantryItem(){
   document.getElementById('pantryName').value='';document.getElementById('pantryQty').value='';document.getElementById('pantryUnit').value='unidades';
   await loadPantry();renderPantry();
 }
-async function deletePantryItem(id){await sb.from('pantry_items').delete().eq('id',id);await loadPantry();renderPantry();}
+function deletePantryItem(id){
+  const item=pantryItems.find(p=>p.id===id);if(!item)return;
+  pantryItems=pantryItems.filter(p=>p.id!==id);
+  renderPantry();
+  showUndoToast('Eliminado de la despensa',
+    ()=>{loadPantry().then(renderPantry);},
+    async()=>{await sb.from('pantry_items').delete().eq('id',id);}
+  );
+}
 
 // HISTORIAL
 async function loadHistorial(){
@@ -2602,6 +2621,23 @@ function appConfirm(message){
   });
 }
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+let _undoTimer=null;
+function showUndoToast(msg,onUndo,onCommit){
+  clearTimeout(_undoTimer);
+  const t=document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent=msg;
+  t.classList.add('show');
+  const btn=document.getElementById('undoToastBtn');
+  btn.onclick=()=>{
+    clearTimeout(_undoTimer);
+    t.classList.remove('show');
+    onUndo();
+  };
+  _undoTimer=setTimeout(()=>{
+    t.classList.remove('show');
+    onCommit();
+  },4000);
+}
 </script>
 </body>
 </html>
