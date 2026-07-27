@@ -302,7 +302,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="section-header">
         <div class="page-title">Menú semanal</div>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-green btn-sm" onclick="generateMenu()">✨ Generar</button>
+          <button class="btn btn-green btn-sm" onclick="withBtnLoading(this,generateMenu)">✨ Generar</button>
           <button class="btn btn-outline btn-sm" onclick="resetMenu()" title="Empezar de cero">🗑️ Restablecer</button>
         </div>
       </div>
@@ -940,13 +940,15 @@ function getRecipeMatchTokens(r){
 }
 // Elige la mejor receta de comida de Emma en base a los ingredientes/piezas que comparte
 // con la receta de adultos (en vez de elegir al azar solo por tipo de proteína)
-function pickBestBebeComida(adultRecipe){
-  const pool=recipes.filter(x=>x.category==='bebe'&&(x.meal_time||[]).includes('comida'));
-  if(!pool.length)return null;
-  if(!adultRecipe)return pool[Math.floor(Math.random()*pool.length)];
+function pickBestBebeComida(adultRecipe,excludeIds){
+  const poolAll=recipes.filter(x=>x.category==='bebe'&&(x.meal_time||[]).includes('comida'));
+  const pool=(excludeIds&&excludeIds.size)?poolAll.filter(r=>!excludeIds.has(r.id)):poolAll;
+  const finalPool=pool.length?pool:poolAll;
+  if(!finalPool.length)return null;
+  if(!adultRecipe)return finalPool[Math.floor(Math.random()*finalPool.length)];
   const adultTokens=getRecipeMatchTokens(adultRecipe);
   let bestScore=-1,best=[];
-  pool.forEach(r=>{
+  finalPool.forEach(r=>{
     let score=0;
     getRecipeMatchTokens(r).forEach(t=>{if(adultTokens.has(t))score++;});
     if(adultRecipe.protein_type&&r.protein_type===adultRecipe.protein_type)score+=0.5;
@@ -954,8 +956,8 @@ function pickBestBebeComida(adultRecipe){
     else if(score===bestScore)best.push(r);
   });
   if(bestScore<=0){
-    const byProtein=adultRecipe.protein_type?pool.filter(r=>r.protein_type===adultRecipe.protein_type):[];
-    const fb=byProtein.length?byProtein:pool;
+    const byProtein=adultRecipe.protein_type?finalPool.filter(r=>r.protein_type===adultRecipe.protein_type):[];
+    const fb=byProtein.length?byProtein:finalPool;
     return fb[Math.floor(Math.random()*fb.length)];
   }
   return best[Math.floor(Math.random()*best.length)];
@@ -1853,7 +1855,7 @@ async function deleteRecipe(id){if(!await appConfirm('¿Eliminar esta receta?'))
 function selectWeekStart(day,btn){weekStart=day;document.querySelectorAll('#weekDayPicker .week-day-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
 function selectWeekLength(len,btn){weekLength=len;document.querySelectorAll('#weekLengthPicker .week-day-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
 function switchPlanTab(tab,btn){activePlanTab=tab;document.querySelectorAll('#pagePlanificador .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderPlanner();persistNav();}
-function generateMenu(){
+async function generateMenu(){
   const ar=recipes.filter(r=>r.category==='adulto'&&r.protein_type);
   if(ar.length<3){alert('Añade al menos 3 recetas de adultos con proteína');return;}
   const days=getWeekDays();
@@ -1861,6 +1863,23 @@ function generateMenu(){
   const fixedDays=new Set(days.filter(d=>currentMenu[d]&&currentMenu[d].locked));
   const emptyDays=days.filter(d=>!fixedDays.has(d));
   if(!emptyDays.length){renderPlanner();showPlannerActions();showToast('Todos los días ya están fijados ✅');return;}
+  // Recetas usadas en las últimas 2 semanas confirmadas, para no repetir
+  const recentAdultIds=new Set(),recentBebeIds=new Set();
+  try{
+    const hhId=currentHousehold?.id;
+    let mq=sb.from('weekly_menus').select('id').eq('status','confirmed').order('week_start',{ascending:false}).limit(2);
+    mq=hhId?mq.eq('household_id',hhId):mq.eq('user_id',currentUser.id);
+    const{data:recentMenus}=await mq;
+    const menuIds=(recentMenus||[]).map(m=>m.id);
+    if(menuIds.length){
+      const{data:recentDays}=await sb.from('weekly_menu_days').select('recipe_id,person_type').in('menu_id',menuIds);
+      (recentDays||[]).forEach(r=>{
+        if(!r.recipe_id)return;
+        if(r.person_type==='adulto')recentAdultIds.add(r.recipe_id);
+        else recentBebeIds.add(r.recipe_id);
+      });
+    }
+  }catch(e){console.error('No se pudo revisar el historial reciente',e);}
   // Proteínas ya usadas en días fijados
   const usedProteins={};
   days.forEach(d=>{if(currentMenu[d]?.locked&&currentMenu[d].protein)usedProteins[d]=currentMenu[d].protein;});
@@ -1880,10 +1899,14 @@ function generateMenu(){
     assigned[day]=pickProtein(idx,assigned);
   });
   // Inicializar currentMenu preservando fijados
+  let ranOutOfFresh=false;
   days.forEach(day=>{
     if(fixedDays.has(day))return; // no tocar fijados
     const protein=assigned[day];
-    const ap=ar.filter(r=>r.protein_type===protein);
+    const apAll=ar.filter(r=>r.protein_type===protein);
+    const apFresh=apAll.filter(r=>!recentAdultIds.has(r.id));
+    if(apAll.length&&!apFresh.length)ranOutOfFresh=true;
+    const ap=apFresh.length?apFresh:apAll;
     const adultoRecipe=ap.length?ap[Math.floor(Math.random()*ap.length)]:null;
     if(!currentMenu[day])currentMenu[day]={};
     currentMenu[day].adulto={recipe:adultoRecipe,skipped:false};
@@ -1891,15 +1914,18 @@ function generateMenu(){
     currentMenu[day].bebe={};
     BEBE_MEALS.forEach(mt=>{
       if(mt==='comida'){
-        const match=pickBestBebeComida(adultoRecipe);
+        const match=pickBestBebeComida(adultoRecipe,recentBebeIds);
         currentMenu[day].bebe[mt]={recipe:match,skipped:false};
         return;
       }
-      const pool=recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
-      currentMenu[day].bebe[mt]={recipe:pool.length?pool[Math.floor(Math.random()*pool.length)]:null,skipped:false};
+      const poolAll=recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
+      const poolFresh=poolAll.filter(r=>!recentBebeIds.has(r.id));
+      const finalPool=poolFresh.length?poolFresh:poolAll;
+      currentMenu[day].bebe[mt]={recipe:finalPool.length?finalPool[Math.floor(Math.random()*finalPool.length)]:null,skipped:false};
     });
   });
-  renderPlanner();showPlannerActions();showToast('Menú generado ✨');
+  renderPlanner();showPlannerActions();
+  showToast(ranOutOfFresh?'Menú generado ✨ (con alguna repetición: pocas recetas disponibles)':'Menú generado ✨ sin repetir las últimas 2 semanas');
 }
 async function resetMenu(){
   if(!await appConfirm('¿Seguro que quieres empezar de cero?'))return;
