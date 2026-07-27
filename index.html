@@ -351,6 +351,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <span class="budget-limit" id="budgetLimit">/ 170€</span>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="budgetProgress" style="width:0%"></div></div>
+        <div id="budgetDiff" style="font-size:13px;font-weight:600;margin-top:6px;"></div>
         <div id="storeSubtotals" style="font-size:12px;color:var(--text-muted);margin-top:6px;display:none;"></div>
       </div>
       <!-- Buscador y filtro -->
@@ -2228,6 +2229,15 @@ function renderShoppingList(items){
   document.getElementById('budgetLimit').textContent='/ '+weekBudget+'€';
   const fill=document.getElementById('budgetProgress');fill.style.width=pct+'%';
   fill.className='progress-fill'+(pct>100?' over':pct>80?' warning':'');
+  const diff=weekBudget-totalPrice;
+  const diffEl=document.getElementById('budgetDiff');
+  if(diff>=0){
+    diffEl.style.color='var(--sage)';
+    diffEl.textContent='✅ Disponible: '+diff.toFixed(2)+'€';
+  }else{
+    diffEl.style.color='var(--coral)';
+    diffEl.textContent='⚠️ Excedido: '+Math.abs(diff).toFixed(2)+'€';
+  }
   // Desglose por súper (solo ítems marcados y con precio, agrupados por dónde se marcaron)
   const byStore={};
   checkedItems.forEach(i=>{const t=calcTotal(i);if(t>0){const s=i.store||'Mercadona';byStore[s]=(byStore[s]||0)+t;}});
