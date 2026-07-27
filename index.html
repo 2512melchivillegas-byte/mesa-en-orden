@@ -2189,6 +2189,12 @@ function getNextWeekday(dayName){
 }
 
 // LISTA DE COMPRA
+// Si alguien escribe "Tomate, verdura." o "Pollo, proteína." (etiqueta de categoría pegada al
+// nombre), la quitamos para que no se trate como un ingrediente distinto de "Tomate"/"Pollo".
+const STRAY_LABEL_RE=/,\s*(otros?|verdura|proteína|proteina|carbohidrato|lácteos|lacteos|ensalada)\.?\s*$/i;
+function stripStrayCategoryLabel(line){
+  return line.replace(STRAY_LABEL_RE,'').trim();
+}
 function buildIngredientLines(r){
   const lines=[];
   if(r.ingredients_list)lines.push(...r.ingredients_list.split('\n'));
@@ -2196,7 +2202,7 @@ function buildIngredientLines(r){
     if(p.ingredients_list)lines.push(...p.ingredients_list.split('\n'));
     else if(p.name)lines.push(p.name);
   });
-  return lines;
+  return lines.map(stripStrayCategoryLabel);
 }
 function buildIngredientItemMap(recipesList,listId){
   const ingMap={};
