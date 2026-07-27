@@ -1752,10 +1752,11 @@ function confirmAddToMenu(){
   closeModal('addToMenuModal');
   showToast('Receta fijada en '+day+' 🔒 — Generar respetará este día');
 }
-let _historialMenuIdxOpen=null,_recipeViewFromHistorial=false;
+let _historialMenuIdxOpen=null,_recipeViewFromHistorial=false,_historialMenuCache=null;
 function viewRecipeByName(name){
   const r=recipes.find(x=>x.name===name);
   if(r){
+    _historialMenuCache={title:document.getElementById('historialMenuTitle').innerHTML,content:document.getElementById('historialMenuContent').innerHTML};
     document.getElementById('historialMenuModal').classList.remove('open');
     _recipeViewFromHistorial=true;
     viewRecipe(r.id);
@@ -2628,11 +2629,16 @@ function closeRecipeView(){
   closeModal('recipeViewModal');
   if(_recipeViewFromHistorial){
     _recipeViewFromHistorial=false;
-    if(_historialMenuIdxOpen!=null)viewHistorialMenu(_historialMenuIdxOpen);
+    if(_historialMenuCache){
+      document.getElementById('historialMenuTitle').innerHTML=_historialMenuCache.title;
+      document.getElementById('historialMenuContent').innerHTML=_historialMenuCache.content;
+      document.getElementById('historialMenuModal').classList.add('open');
+      _historialMenuCache=null;
+    }else if(_historialMenuIdxOpen!=null)viewHistorialMenu(_historialMenuIdxOpen);
   }
 }
 function closeHistorialMenuModal(){
-  _historialMenuIdxOpen=null;
+  _historialMenuIdxOpen=null;_historialMenuCache=null;
   closeModal('historialMenuModal');
 }
 function appConfirm(message){
