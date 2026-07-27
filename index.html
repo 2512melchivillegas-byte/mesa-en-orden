@@ -2255,6 +2255,7 @@ async function generateShoppingList(menuId,hhId){
   const allItems=[...basicItems,...recipeItems];
   if(allItems.length)await sb.from('shopping_list_items').insert(allItems);
 }
+let _storeActualTotals={};
 async function loadShoppingList(){
   if(!currentUser)return;
   const hhId=currentHousehold?.id;
@@ -2263,6 +2264,9 @@ async function loadShoppingList(){
   const{data:lists}=await q;
   if(!lists?.length)return;currentListId=lists[0].id;
   const{data:items}=await sb.from('shopping_list_items').select('*').eq('list_id',lists[0].id).order('category').order('ingredient_name');
+  const{data:actuals}=await sb.from('shopping_list_store_totals').select('store,actual_total').eq('list_id',lists[0].id);
+  _storeActualTotals={};
+  (actuals||[]).forEach(a=>{if(a.actual_total!=null)_storeActualTotals[a.store]=parseFloat(a.actual_total);});
   renderShoppingList(items||[]);
 }
 let _shopSearch='';
@@ -2300,8 +2304,13 @@ function renderShoppingList(items){
     const q=item.qty_count!=null?parseInt(item.qty_count):extractQtyNum(item.unit||'');
     return p*q;
   }
+  // Desglose por súper (ítems marcados y con precio, agrupados por dónde se marcaron)
   const checkedItems=items.filter(i=>i.checked);
-  const totalPrice=checkedItems.reduce((s,i)=>s+calcTotal(i),0);
+  const byStore={};
+  checkedItems.forEach(i=>{const t=calcTotal(i);if(t>0){const s=i.store||'Mercadona';byStore[s]=(byStore[s]||0)+t;}});
+  const storeKeys=Object.keys(byStore);
+  // Total real: si hay un monto real pagado guardado para una tienda, se usa ese en vez del estimado
+  const totalPrice=storeKeys.reduce((s,store)=>s+(_storeActualTotals[store]!=null?_storeActualTotals[store]:byStore[store]),0);
   const pct=Math.min(100,Math.round((totalPrice/weekBudget)*100));
   document.getElementById('budgetBar').style.display='block';
   document.getElementById('budgetTotal').textContent=totalPrice.toFixed(2)+'€';
@@ -2317,14 +2326,20 @@ function renderShoppingList(items){
     diffEl.style.color='var(--coral)';
     diffEl.textContent='⚠️ Excedido: '+Math.abs(diff).toFixed(2)+'€';
   }
-  // Desglose por súper (solo ítems marcados y con precio, agrupados por dónde se marcaron)
-  const byStore={};
-  checkedItems.forEach(i=>{const t=calcTotal(i);if(t>0){const s=i.store||'Mercadona';byStore[s]=(byStore[s]||0)+t;}});
-  const storeKeys=Object.keys(byStore);
   const storeEl=document.getElementById('storeSubtotals');
-  if(storeKeys.length>1){
+  if(storeKeys.length){
     storeEl.style.display='block';
-    storeEl.textContent=storeKeys.map(s=>`${s}: ${byStore[s].toFixed(2)}€`).join('  ·  ');
+    storeEl.innerHTML=storeKeys.map(store=>{
+      const est=byStore[store];
+      const real=_storeActualTotals[store];
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;flex-wrap:wrap;row-gap:4px;">
+        <span>${store}: estimado ${est.toFixed(2)}€${real!=null?` · <strong style="color:var(--dark-green)">real ${real.toFixed(2)}€</strong>`:''}</span>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+          <span style="white-space:nowrap;">Pagado en caja:</span>
+          <input type="number" step="0.01" class="price-input" style="width:60px;" placeholder="€" value="${real!=null?real:''}" onchange="saveStoreActualTotal('${store}',this.value)">
+        </div>
+      </div>`;
+    }).join('');
   }else{
     storeEl.style.display='none';
   }
@@ -2384,6 +2399,19 @@ async function toggleItem(itemId,checked){
 function setCurrentShoppingStore(v){
   currentShoppingStore=v;
   localStorage.setItem('meo_currentStore',v);
+}
+async function saveStoreActualTotal(store,value){
+  if(!currentListId)return;
+  const val=value.trim()===''?null:parseFloat(value);
+  if(val==null){
+    delete _storeActualTotals[store];
+    await sb.from('shopping_list_store_totals').delete().eq('list_id',currentListId).eq('store',store);
+  }else{
+    _storeActualTotals[store]=val;
+    await sb.from('shopping_list_store_totals').upsert({list_id:currentListId,store,actual_total:val,updated_at:new Date().toISOString()},{onConflict:'list_id,store'});
+  }
+  showToast('Total real guardado ✅');
+  renderCurrentList();
 }
 async function updateQtyCount(itemId,count){
   const n=parseInt(count)||1;
