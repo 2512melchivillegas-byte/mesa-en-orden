@@ -872,9 +872,12 @@ function catSelect(id,val='Despensa'){
 // para que "carne en filete" y "filete de carne" se reconozcan como el mismo ingrediente sin duplicarse.
 const ING_SYNONYMS={'papa':'patata','papas':'patatas','zapallo':'calabaza','choclo':'maiz','palta':'aguacate'};
 const ING_STOPWORDS=new Set(['de','del','la','el','los','las','en','con','y','al','a','un','una','sin','para']);
-function normIngKey(s){
+function ingTokens(s){
   let t=normTxt(s).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
-  const words=t.split(' ').filter(Boolean).filter(w=>!ING_STOPWORDS.has(w)).map(w=>ING_SYNONYMS[w]||w);
+  return t.split(' ').filter(Boolean).filter(w=>!ING_STOPWORDS.has(w)).map(w=>ING_SYNONYMS[w]||w);
+}
+function normIngKey(s){
+  const words=ingTokens(s).slice();
   words.sort();
   return words.join(' ');
 }
@@ -2204,13 +2207,32 @@ function buildIngredientLines(r){
   });
   return lines.map(stripStrayCategoryLabel);
 }
+function isSubset(a,b){for(const x of a)if(!b.has(x))return false;return true;}
 function buildIngredientItemMap(recipesList,listId){
   const ingMap={};
+  const entries=[]; // {key,tokens,ingredient_name} de lo ya añadido, para detectar genérico vs específico
   recipesList.forEach(r=>{
     buildIngredientLines(r).forEach(line=>{
       const t=line.trim();if(!t)return;
       const key=normIngKey(t);
-      if(!ingMap[key]){const cat=getCategoryForIngredient(t)||'Despensa';ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};}
+      if(ingMap[key])return; // ya está exactamente igual
+      const tokens=new Set(ingTokens(t));
+      // ¿Esta línea es una versión más genérica/específica de un ingrediente ya en la lista?
+      // Ej. "Pollo" (Emma) y "Pollo a la plancha" (adultos) -> nos quedamos solo con el más específico.
+      const matches=entries.filter(e=>isSubset(tokens,e.tokens)||isSubset(e.tokens,tokens));
+      if(matches.length===1){
+        const m=matches[0];
+        if(tokens.size>m.tokens.size){
+          delete ingMap[m.key];
+          const cat=getCategoryForIngredient(t)||'Despensa';
+          ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};
+          m.key=key;m.tokens=tokens;m.ingredient_name=t;
+        }
+        return; // ya cubierto por el existente (o por el que acabamos de sustituir)
+      }
+      const cat=getCategoryForIngredient(t)||'Despensa';
+      ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};
+      entries.push({key,tokens,ingredient_name:t});
     });
   });
   return ingMap;
