@@ -540,7 +540,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
         <button class="btn btn-outline btn-sm" id="rvEditBtn">✏️ Editar</button>
-        <button class="btn-icon" onclick="closeModal('recipeViewModal')">✕</button>
+        <button class="btn-icon" onclick="closeRecipeView()">✕</button>
       </div>
     </div>
     <div style="overflow-y:auto;padding:1.25rem;flex:1;">
@@ -802,7 +802,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   <div class="modal" style="padding:0;display:flex;flex-direction:column;max-height:85vh;">
     <div class="modal-header" style="padding:1rem 1.5rem;border-bottom:1px solid var(--beige);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
       <div class="modal-title" id="historialMenuTitle" style="font-size:15px;font-weight:700;color:var(--dark-green);">Menú semana</div>
-      <button class="btn-icon" onclick="closeModal('historialMenuModal')">✕</button>
+      <button class="btn-icon" onclick="closeHistorialMenuModal()">✕</button>
     </div>
     <div id="historialMenuContent" style="overflow-y:auto;padding:1rem;flex:1;"></div>
   </div>
@@ -1752,9 +1752,14 @@ function confirmAddToMenu(){
   closeModal('addToMenuModal');
   showToast('Receta fijada en '+day+' 🔒 — Generar respetará este día');
 }
+let _historialMenuIdxOpen=null,_recipeViewFromHistorial=false;
 function viewRecipeByName(name){
   const r=recipes.find(x=>x.name===name);
-  if(r){closeModal('historialMenuModal');viewRecipe(r.id);}
+  if(r){
+    document.getElementById('historialMenuModal').classList.remove('open');
+    _recipeViewFromHistorial=true;
+    viewRecipe(r.id);
+  }
   else{alert('Receta no encontrada en el recetario.');}
 }
 function viewRecipe(id){
@@ -2559,6 +2564,7 @@ async function usarFavoritoMenu(idx){
   setTimeout(()=>{renderPlanner();showPlannerActions();},100);
 }
 async function viewHistorialMenu(idx){
+  _historialMenuIdxOpen=idx;
   const menuObj=window._historialData?.[idx];
   if(!menuObj)return;
   const menuId=menuObj.id;
@@ -2618,6 +2624,17 @@ async function saveBudget(){
 
 // UTILS
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeRecipeView(){
+  closeModal('recipeViewModal');
+  if(_recipeViewFromHistorial){
+    _recipeViewFromHistorial=false;
+    if(_historialMenuIdxOpen!=null)viewHistorialMenu(_historialMenuIdxOpen);
+  }
+}
+function closeHistorialMenuModal(){
+  _historialMenuIdxOpen=null;
+  closeModal('historialMenuModal');
+}
 function appConfirm(message){
   return new Promise(resolve=>{
     const modal=document.getElementById('confirmModal');
