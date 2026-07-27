@@ -63,6 +63,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .badge-adulto { background:#E0E7FF; color:#3730A3; }
 .badge-bebe { background:#FCE7F3; color:#9D174D; }
 .btn { padding:8px 14px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:inherit; }
+.btn:disabled { opacity:0.6; cursor:default; }
 .btn-green { background:var(--dark-green); color:white; }
 .btn-green:hover { background:var(--sage); }
 .btn-coral { background:var(--coral); color:white; }
@@ -338,7 +339,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="swap-hint" id="swapHint">Selecciona otro día para intercambiar 🔀</div>
       <div id="plannerContent"><div class="empty"><div class="empty-icon">📅</div><p>Configura tu semana y pulsa <strong>Generar</strong></p></div></div>
       <div id="plannerActions" style="display:none;margin-top:1rem;">
-        <button class="btn btn-coral btn-block" id="confirmMenuBtn" onclick="confirmMenu()">✓ Confirmar y crear lista de compra</button>
+        <button class="btn btn-coral btn-block" id="confirmMenuBtn" onclick="withBtnLoading(this,confirmMenu)">✓ Confirmar y crear lista de compra</button>
       </div>
     </div>
 
@@ -349,7 +350,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <button class="btn btn-outline btn-sm" onclick="openAddOcasionales()" title="Añadir ocasionales del mes">🗓️</button>
           <button class="btn btn-outline btn-sm" onclick="openAddFrutas()" title="Añadir frutas de la semana">🍊</button>
           <button class="btn btn-outline btn-sm" onclick="addManualItem()">+ Añadir</button>
-          <button class="btn btn-outline btn-sm" onclick="regenerateList()" title="Regenerar lista">🔄</button>
+          <button class="btn btn-outline btn-sm" onclick="withBtnLoading(this,regenerateList)" title="Regenerar lista">🔄</button>
         </div>
       </div>
       <div class="budget-bar" id="budgetBar" style="display:none">
@@ -430,7 +431,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <div class="gap-row">
           <input type="number" id="budgetInput" placeholder="170" style="flex:1;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--beige);">
           <span class="text-muted">€</span>
-          <button class="btn btn-green btn-sm" onclick="saveBudget()">Guardar</button>
+          <button class="btn btn-green btn-sm" onclick="withBtnLoading(this,saveBudget)">Guardar</button>
         </div>
       </div>
       <div class="card">
@@ -496,7 +497,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row"><label>Link vídeo/reel</label><input type="url" id="rVideo" placeholder="https://..."></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('recipeModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="saveRecipe()">Guardar</button>
+      <button class="btn btn-green" onclick="withBtnLoading(this,saveRecipe)">Guardar</button>
     </div>
   </div>
 </div>
@@ -574,7 +575,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('manualItemModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="saveManualItem()">Añadir</button>
+      <button class="btn btn-green" onclick="withBtnLoading(this,saveManualItem)">Añadir</button>
     </div>
   </div>
 </div>
@@ -587,7 +588,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Se recuerda para las próximas semanas.</div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('categoryPickerModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="saveCategoryPick()">Guardar</button>
+      <button class="btn btn-green" onclick="withBtnLoading(this,saveCategoryPick)">Guardar</button>
     </div>
   </div>
 </div>
@@ -625,7 +626,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div id="plantillaItems" style="overflow-y:auto;flex:1;padding:1rem 1.5rem;"></div>
     <div class="modal-footer" style="margin:0;padding:0.85rem 1.5rem;border-top:1px solid var(--beige);flex-shrink:0;">
       <button class="btn btn-outline" onclick="closeModal('plantillaModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="savePlantilla()">Guardar despensa</button>
+      <button class="btn btn-green" onclick="withBtnLoading(this,savePlantilla)">Guardar despensa</button>
     </div>
   </div>
 </div>
@@ -663,7 +664,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
             <option value="Limpieza">🧹 Limpieza</option>
           </select>
         </div>
-        <button class="btn btn-green btn-sm" id="habitualSaveBtn" onclick="saveHabitual()">+ Añadir</button>
+        <button class="btn btn-green btn-sm" id="habitualSaveBtn" onclick="withBtnLoading(this,saveHabitual)">+ Añadir</button>
       </div>
     </div>
     <div id="habitualesList" style="overflow-y:auto;flex:1;padding:1rem 1.5rem;"></div>
@@ -711,7 +712,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('pantryModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="savePantryItem()">Guardar</button>
+      <button class="btn btn-green" onclick="withBtnLoading(this,savePantryItem)">Guardar</button>
     </div>
   </div>
 </div>
@@ -767,7 +768,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row"><label>Ingredientes <span style="font-weight:400;color:var(--text-muted);font-size:12px;">(uno por línea, opcional)</span></label><textarea id="cIngredients" placeholder="Ej:&#10;Pechuga de pollo&#10;Ajo&#10;Limón" rows="4"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('componentModal')">Cancelar</button>
-      <button class="btn btn-green" onclick="saveComponent()">Guardar</button>
+      <button class="btn btn-green" onclick="withBtnLoading(this,saveComponent)">Guardar</button>
     </div>
   </div>
 </div>
@@ -2313,6 +2314,8 @@ function renderShoppingList(items){
   h+='</div>';el.innerHTML=h;
 }
 async function toggleItem(itemId,checked){
+  const rowEl=document.getElementById('item-'+itemId);
+  if(rowEl)rowEl.style.opacity='0.5';
   const update={checked};
   if(checked)update.store=currentShoppingStore;
   await sb.from('shopping_list_items').update(update).eq('id',itemId);
@@ -2635,6 +2638,13 @@ function appConfirm(message){
   });
 }
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+async function withBtnLoading(btn,fn){
+  if(!btn){await fn();return;}
+  const orig=btn.textContent;
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{await fn();}
+  finally{btn.disabled=false;btn.textContent=orig;}
+}
 let _undoTimer=null;
 function showUndoToast(msg,onUndo,onCommit){
   clearTimeout(_undoTimer);
