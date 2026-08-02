@@ -340,6 +340,19 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div id="plannerContent"><div class="empty"><div class="empty-icon">📅</div><p>Configura tu semana y pulsa <strong>Generar</strong></p></div></div>
       <div id="plannerActions" style="display:none;margin-top:1rem;">
         <button class="btn btn-coral btn-block" id="confirmMenuBtn" onclick="withBtnLoading(this,confirmMenu)">✓ Confirmar y crear lista de compra</button>
+        <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="openShareMenu()">📤 Compartir menú</button>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="shareMenuModal">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">📤 Compartir menú</div>
+          <button class="btn-icon" onclick="closeModal('shareMenuModal')">✕</button>
+        </div>
+        <p class="text-muted" style="font-size:13px;margin-bottom:1rem;">Elige cómo quieres compartirlo con tu familia.</p>
+        <button class="btn btn-green btn-block" style="margin-bottom:8px;" onclick="withBtnLoading(this,shareMenuText)">💬 Como texto (WhatsApp)</button>
+        <button class="btn btn-outline btn-block" onclick="withBtnLoading(this,shareMenuImage)">🖼️ Como imagen</button>
       </div>
     </div>
 
@@ -1969,6 +1982,91 @@ async function resetMenu(){
   document.getElementById('plannerActions').style.display='none';
   document.getElementById('plannerContent').innerHTML='<div class="empty"><div class="empty-icon">📅</div><p>Configura tu semana y pulsa <strong>Generar</strong></p></div>';
   showToast('Menú restablecido 🗑️');
+}
+function openShareMenu(){
+  if(!Object.keys(currentMenu).length){showToast('No hay menú para compartir');return;}
+  document.getElementById('shareMenuModal').classList.add('open');
+}
+function getMenuShareRows(){
+  return Object.keys(currentMenu).sort().map(day=>{
+    const slot=currentMenu[day];
+    const a=slot.adulto;
+    const text=a?.skipped?'Fuera de casa':(a?.recipe?a.recipe.name:'Sin receta');
+    return{label:dayLabel(day),text};
+  });
+}
+async function shareMenuText(){
+  const rows=getMenuShareRows();
+  if(!rows.length){showToast('No hay menú para compartir');return;}
+  let text='🍽️ *Menú de la semana*\n\n';
+  rows.forEach(r=>{text+=`*${r.label}:* ${r.text}\n`;});
+  text+='\n— Mesa en Orden';
+  closeModal('shareMenuModal');
+  if(navigator.share){
+    try{await navigator.share({title:'Menú semanal',text});return;}catch(e){return;} // el usuario canceló el share nativo
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast('Menú copiado 📋 — pégalo donde quieras');
+  }catch(e){
+    showToast('No se pudo copiar automáticamente');
+  }
+}
+function wrapTextLines(ctx,text,maxWidth){
+  const words=text.split(' ');
+  const lines=[];let cur='';
+  words.forEach(w=>{
+    const test=cur?cur+' '+w:w;
+    if(ctx.measureText(test).width>maxWidth&&cur){lines.push(cur);cur=w;}
+    else cur=test;
+  });
+  if(cur)lines.push(cur);
+  return lines;
+}
+async function shareMenuImage(){
+  const rows=getMenuShareRows();
+  if(!rows.length){showToast('No hay menú para compartir');return;}
+  closeModal('shareMenuModal');
+  const width=900,pad=36,labelW=140,textMaxW=width-pad*2-labelW-20;
+  const lineH=26,rowPadV=18,headerH=130;
+  const mctx=document.createElement('canvas').getContext('2d');
+  mctx.font='19px -apple-system,Arial,sans-serif';
+  const rowsWithLines=rows.map(r=>{
+    const lines=wrapTextLines(mctx,r.text,textMaxW);
+    return{...r,lines,h:Math.max(1,lines.length)*lineH+rowPadV*2};
+  });
+  const totalH=headerH+rowsWithLines.reduce((s,r)=>s+r.h,0)+40;
+  const canvas=document.createElement('canvas');
+  canvas.width=width;canvas.height=totalH;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#F5F0E8';ctx.fillRect(0,0,width,totalH);
+  ctx.fillStyle='#3D5A40';
+  ctx.font='bold 32px -apple-system,Arial,sans-serif';
+  ctx.fillText('🍽️ Menú de la semana',pad,60);
+  ctx.strokeStyle='#6B8F71';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(pad,84);ctx.lineTo(width-pad,84);ctx.stroke();
+  let y=headerH;
+  rowsWithLines.forEach((r,i)=>{
+    if(i%2===0){ctx.fillStyle='#FFFFFF';ctx.fillRect(pad-10,y-10,width-(pad-10)*2,r.h);}
+    ctx.fillStyle='#3D5A40';
+    ctx.font='bold 19px -apple-system,Arial,sans-serif';
+    ctx.fillText(r.label,pad,y+rowPadV+lineH*0.35);
+    ctx.fillStyle='#333333';
+    ctx.font='19px -apple-system,Arial,sans-serif';
+    r.lines.forEach((line,li)=>{ctx.fillText(line,pad+labelW,y+rowPadV+lineH*0.35+li*lineH);});
+    y+=r.h;
+  });
+  canvas.toBlob(async(blob)=>{
+    if(!blob){showToast('No se pudo generar la imagen');return;}
+    const file=new File([blob],'menu-semanal.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:'Menú semanal'});return;}catch(e){/* el usuario canceló, seguimos con descarga */}
+    }
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='menu-semanal.png';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    showToast('Imagen descargada 🖼️');
+  },'image/png');
 }
 const ROLE_ICON={proteina:'🍗',carbohidrato:'🌾',ensalada:'🥗',otro:'➕'};
 function renderPlanner(){
