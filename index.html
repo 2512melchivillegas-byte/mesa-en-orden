@@ -1900,6 +1900,13 @@ async function generateMenu(){
   }
   const usedStyles=new Set();
   days.forEach(d=>{if(currentMenu[d]?.locked){const st=recipeStyle(currentMenu[d].adulto?.recipe);if(st)usedStyles.add(st);}});
+  // Recetas ya usadas en ESTA misma semana (fijadas o ya asignadas en esta pasada de Generar),
+  // para no repetir la receta exacta dos veces en la semana.
+  const usedAdultThisWeek=new Set(),usedBebeComidaThisWeek=new Set();
+  days.forEach(d=>{if(currentMenu[d]?.locked){
+    if(currentMenu[d].adulto?.recipe?.id)usedAdultThisWeek.add(currentMenu[d].adulto.recipe.id);
+    const bc=currentMenu[d].bebe?.comida?.recipe?.id;if(bc)usedBebeComidaThisWeek.add(bc);
+  }});
   // Distribuir proteínas para los días vacíos sin repetir en días consecutivos
   const pool=['pollo','carne','pescado','cerdo','vegetal'];
   function pickProtein(dayIndex,assigned){
@@ -1916,7 +1923,7 @@ async function generateMenu(){
     assigned[day]=pickProtein(idx,assigned);
   });
   // Inicializar currentMenu preservando fijados
-  let ranOutOfFresh=false,styleRepeated=false;
+  let ranOutOfFresh=false,styleRepeated=false,exactRepeated=false;
   days.forEach(day=>{
     if(fixedDays.has(day))return; // no tocar fijados
     const protein=assigned[day];
@@ -1927,16 +1934,24 @@ async function generateMenu(){
     const apStyleOk=ap.filter(r=>{const st=recipeStyle(r);return !st||!usedStyles.has(st);});
     if(ap.length&&!apStyleOk.length)styleRepeated=true;
     ap=apStyleOk.length?apStyleOk:ap;
+    const apNotUsed=ap.filter(r=>!usedAdultThisWeek.has(r.id));
+    if(ap.length&&!apNotUsed.length)exactRepeated=true;
+    ap=apNotUsed.length?apNotUsed:ap;
     const adultoRecipe=ap.length?ap[Math.floor(Math.random()*ap.length)]:null;
-    if(adultoRecipe){const st=recipeStyle(adultoRecipe);if(st)usedStyles.add(st);}
+    if(adultoRecipe){
+      const st=recipeStyle(adultoRecipe);if(st)usedStyles.add(st);
+      usedAdultThisWeek.add(adultoRecipe.id);
+    }
     if(!currentMenu[day])currentMenu[day]={};
     currentMenu[day].adulto={recipe:adultoRecipe,skipped:false};
     currentMenu[day].protein=protein;
     currentMenu[day].bebe={};
     BEBE_MEALS.forEach(mt=>{
       if(mt==='comida'){
-        const match=pickBestBebeComida(adultoRecipe,recentBebeIds);
+        const excludeComida=new Set([...recentBebeIds,...usedBebeComidaThisWeek]);
+        const match=pickBestBebeComida(adultoRecipe,excludeComida);
         currentMenu[day].bebe[mt]={recipe:match,skipped:false};
+        if(match?.id)usedBebeComidaThisWeek.add(match.id);
         return;
       }
       const poolAll=recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
@@ -1946,7 +1961,7 @@ async function generateMenu(){
     });
   });
   renderPlanner();showPlannerActions();
-  showToast((ranOutOfFresh||styleRepeated)?'Menú generado ✨ (con alguna repetición: pocas recetas disponibles)':'Menú generado ✨ sin repetir las últimas 2 semanas');
+  showToast((ranOutOfFresh||styleRepeated||exactRepeated)?'Menú generado ✨ (con alguna repetición: pocas recetas disponibles)':'Menú generado ✨ sin repetir las últimas 2 semanas');
 }
 async function resetMenu(){
   if(!await appConfirm('¿Seguro que quieres empezar de cero?'))return;
