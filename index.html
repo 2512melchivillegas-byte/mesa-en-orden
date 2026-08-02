@@ -1991,16 +1991,25 @@ function getMenuShareRows(){
   return Object.keys(currentMenu).sort().map(day=>{
     const slot=currentMenu[day];
     const a=slot.adulto;
-    const text=a?.skipped?'Fuera de casa':(a?.recipe?a.recipe.name:'Sin receta');
-    return{label:dayLabel(day),text};
+    const adultText=a?.skipped?'Fuera de casa':(a?.recipe?a.recipe.name:'Sin receta');
+    const bebeLines=BEBE_MEALS.map(mt=>{
+      const m=(slot.bebe||{})[mt];if(!m)return null;
+      const text=m.skipped?'No preparado':(m.recipe?m.recipe.name:'Sin receta');
+      return{label:MEAL_LABELS[mt],text};
+    }).filter(Boolean);
+    return{label:dayLabel(day),adultText,bebeLines};
   });
 }
 async function shareMenuText(){
   const rows=getMenuShareRows();
   if(!rows.length){showToast('No hay menú para compartir');return;}
   let text='🍽️ *Menú de la semana*\n\n';
-  rows.forEach(r=>{text+=`*${r.label}:* ${r.text}\n`;});
-  text+='\n— Mesa en Orden';
+  rows.forEach(r=>{
+    text+=`*${r.label}*\n👤 Adultos: ${r.adultText}\n`;
+    r.bebeLines.forEach(b=>{text+=`${b.label}: ${b.text}\n`;});
+    text+='\n';
+  });
+  text+='— Mesa en Orden';
   closeModal('shareMenuModal');
   if(navigator.share){
     try{await navigator.share({title:'Menú semanal',text});return;}catch(e){return;} // el usuario canceló el share nativo
@@ -2027,34 +2036,52 @@ async function shareMenuImage(){
   const rows=getMenuShareRows();
   if(!rows.length){showToast('No hay menú para compartir');return;}
   closeModal('shareMenuModal');
-  const width=900,pad=36,labelW=140,textMaxW=width-pad*2-labelW-20;
-  const lineH=26,rowPadV=18,headerH=130;
+  const width=900,pad=36,contentW=width-pad*2-20;
+  const indent=140,textMaxW=contentW-indent;
+  const dayFont='bold 22px -apple-system,Arial,sans-serif';
+  const labelFont='bold 16px -apple-system,Arial,sans-serif';
+  const textFont='16px -apple-system,Arial,sans-serif';
+  const lineH=22,blockGapV=16,dayHeaderH=38,rowGap=6;
   const mctx=document.createElement('canvas').getContext('2d');
-  mctx.font='19px -apple-system,Arial,sans-serif';
-  const rowsWithLines=rows.map(r=>{
-    const lines=wrapTextLines(mctx,r.text,textMaxW);
-    return{...r,lines,h:Math.max(1,lines.length)*lineH+rowPadV*2};
+  const dayBlocks=rows.map(r=>{
+    mctx.font=textFont;
+    const adultLines=wrapTextLines(mctx,r.adultText,textMaxW);
+    const bebeBlocks=r.bebeLines.map(b=>({label:b.label,lines:wrapTextLines(mctx,b.text,textMaxW)}));
+    let h=dayHeaderH+adultLines.length*lineH+rowGap;
+    bebeBlocks.forEach(b=>{h+=b.lines.length*lineH+rowGap;});
+    h+=blockGapV;
+    return{label:r.label,adultLines,bebeBlocks,h};
   });
-  const totalH=headerH+rowsWithLines.reduce((s,r)=>s+r.h,0)+40;
+  const headerH=90;
+  const totalH=headerH+dayBlocks.reduce((s,d)=>s+d.h,0)+30;
   const canvas=document.createElement('canvas');
   canvas.width=width;canvas.height=totalH;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#F5F0E8';ctx.fillRect(0,0,width,totalH);
   ctx.fillStyle='#3D5A40';
-  ctx.font='bold 32px -apple-system,Arial,sans-serif';
-  ctx.fillText('🍽️ Menú de la semana',pad,60);
+  ctx.font='bold 30px -apple-system,Arial,sans-serif';
+  ctx.fillText('🍽️ Menú de la semana',pad,55);
   ctx.strokeStyle='#6B8F71';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(pad,84);ctx.lineTo(width-pad,84);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad,75);ctx.lineTo(width-pad,75);ctx.stroke();
   let y=headerH;
-  rowsWithLines.forEach((r,i)=>{
-    if(i%2===0){ctx.fillStyle='#FFFFFF';ctx.fillRect(pad-10,y-10,width-(pad-10)*2,r.h);}
-    ctx.fillStyle='#3D5A40';
-    ctx.font='bold 19px -apple-system,Arial,sans-serif';
-    ctx.fillText(r.label,pad,y+rowPadV+lineH*0.35);
-    ctx.fillStyle='#333333';
-    ctx.font='19px -apple-system,Arial,sans-serif';
-    r.lines.forEach((line,li)=>{ctx.fillText(line,pad+labelW,y+rowPadV+lineH*0.35+li*lineH);});
-    y+=r.h;
+  dayBlocks.forEach((d,i)=>{
+    if(i%2===0){ctx.fillStyle='#FFFFFF';ctx.fillRect(pad-10,y-6,width-(pad-10)*2,d.h-blockGapV+10);}
+    ctx.fillStyle='#3D5A40';ctx.font=dayFont;
+    ctx.fillText(d.label,pad,y+22);
+    let ly=y+dayHeaderH;
+    ctx.font=labelFont;ctx.fillStyle='#6B8F71';
+    ctx.fillText('👤 Adultos',pad,ly+lineH*0.75);
+    ctx.font=textFont;ctx.fillStyle='#333333';
+    d.adultLines.forEach((line,li)=>{ctx.fillText(line,pad+indent,ly+lineH*0.75+li*lineH);});
+    ly+=d.adultLines.length*lineH+rowGap;
+    d.bebeBlocks.forEach(b=>{
+      ctx.font=labelFont;ctx.fillStyle='#6B8F71';
+      ctx.fillText(b.label,pad,ly+lineH*0.75);
+      ctx.font=textFont;ctx.fillStyle='#333333';
+      b.lines.forEach((line,li)=>{ctx.fillText(line,pad+indent,ly+lineH*0.75+li*lineH);});
+      ly+=b.lines.length*lineH+rowGap;
+    });
+    y+=d.h;
   });
   canvas.toBlob(async(blob)=>{
     if(!blob){showToast('No se pudo generar la imagen');return;}
