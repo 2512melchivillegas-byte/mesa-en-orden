@@ -1862,6 +1862,9 @@ async function generateMenu(){
   const ar=recipes.filter(r=>r.category==='adulto'&&r.protein_type);
   if(ar.length<3){alert('Añade al menos 3 recetas de adultos con proteína');return;}
   const days=getWeekDays();
+  // Si había un menú de OTRA semana cargado (ej. el último confirmado, al entrar a la pestaña),
+  // lo descartamos para no mezclar dos semanas distintas en el planificador.
+  Object.keys(currentMenu).forEach(k=>{if(!days.includes(k))delete currentMenu[k];});
   // Detectar qué días ya están fijados (ambas tabs)
   const fixedDays=new Set(days.filter(d=>currentMenu[d]&&currentMenu[d].locked));
   const emptyDays=days.filter(d=>!fixedDays.has(d));
