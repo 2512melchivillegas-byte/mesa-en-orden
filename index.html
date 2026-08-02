@@ -1889,6 +1889,17 @@ async function generateMenu(){
   // Proteínas ya usadas en días fijados
   const usedProteins={};
   days.forEach(d=>{if(currentMenu[d]?.locked&&currentMenu[d].protein)usedProteins[d]=currentMenu[d].protein;});
+  // Estilo de preparación (desmechada, molida, plancha, etc.) para no repetirlo dos veces en la semana,
+  // aunque sea de otra proteína (ej. "Carne desmechada" y "Pollo desmechado" en la misma semana).
+  const STYLE_KEYWORDS=['desmechad','molid','picad','plancha','guisad','apanad','frit','asad','cuadritos','wok','al ast','al limon','al limón'];
+  function recipeStyle(r){
+    if(!r)return null;
+    const n=normTxt(r.name||'');
+    for(const kw of STYLE_KEYWORDS){if(n.includes(normTxt(kw)))return kw;}
+    return null;
+  }
+  const usedStyles=new Set();
+  days.forEach(d=>{if(currentMenu[d]?.locked){const st=recipeStyle(currentMenu[d].adulto?.recipe);if(st)usedStyles.add(st);}});
   // Distribuir proteínas para los días vacíos sin repetir en días consecutivos
   const pool=['pollo','carne','pescado','cerdo','vegetal'];
   function pickProtein(dayIndex,assigned){
@@ -1905,15 +1916,19 @@ async function generateMenu(){
     assigned[day]=pickProtein(idx,assigned);
   });
   // Inicializar currentMenu preservando fijados
-  let ranOutOfFresh=false;
+  let ranOutOfFresh=false,styleRepeated=false;
   days.forEach(day=>{
     if(fixedDays.has(day))return; // no tocar fijados
     const protein=assigned[day];
     const apAll=ar.filter(r=>r.protein_type===protein);
     const apFresh=apAll.filter(r=>!recentAdultIds.has(r.id));
     if(apAll.length&&!apFresh.length)ranOutOfFresh=true;
-    const ap=apFresh.length?apFresh:apAll;
+    let ap=apFresh.length?apFresh:apAll;
+    const apStyleOk=ap.filter(r=>{const st=recipeStyle(r);return !st||!usedStyles.has(st);});
+    if(ap.length&&!apStyleOk.length)styleRepeated=true;
+    ap=apStyleOk.length?apStyleOk:ap;
     const adultoRecipe=ap.length?ap[Math.floor(Math.random()*ap.length)]:null;
+    if(adultoRecipe){const st=recipeStyle(adultoRecipe);if(st)usedStyles.add(st);}
     if(!currentMenu[day])currentMenu[day]={};
     currentMenu[day].adulto={recipe:adultoRecipe,skipped:false};
     currentMenu[day].protein=protein;
@@ -1931,7 +1946,7 @@ async function generateMenu(){
     });
   });
   renderPlanner();showPlannerActions();
-  showToast(ranOutOfFresh?'Menú generado ✨ (con alguna repetición: pocas recetas disponibles)':'Menú generado ✨ sin repetir las últimas 2 semanas');
+  showToast((ranOutOfFresh||styleRepeated)?'Menú generado ✨ (con alguna repetición: pocas recetas disponibles)':'Menú generado ✨ sin repetir las últimas 2 semanas');
 }
 async function resetMenu(){
   if(!await appConfirm('¿Seguro que quieres empezar de cero?'))return;
