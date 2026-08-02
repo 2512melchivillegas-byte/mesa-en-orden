@@ -2187,7 +2187,7 @@ async function syncShoppingListForMenu(menuId,hhId){
 }
 function getNextWeekday(dayName){
   const target=DOW_SUN.indexOf(dayName);const today=new Date();const current=today.getDay();
-  let diff=target-current;if(diff<=0)diff+=7;
+  let diff=target-current;if(diff<0)diff+=7;
   const next=new Date(today);next.setDate(today.getDate()+diff);return toISODate(next);
 }
 
