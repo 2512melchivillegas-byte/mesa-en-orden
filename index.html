@@ -2240,32 +2240,47 @@ function buildIngredientLines(r){
   });
   return lines.map(stripStrayCategoryLabel);
 }
+function escAttr(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showIngredientSource(el){
+  const src=el.dataset.src;if(!src)return;
+  showToast((src.includes(',')?'De las recetas: ':'De la receta: ')+src);
+}
 function isSubset(a,b){for(const x of a)if(!b.has(x))return false;return true;}
 function buildIngredientItemMap(recipesList,listId){
   const ingMap={};
-  const entries=[]; // {key,tokens,ingredient_name} de lo ya añadido, para detectar genérico vs específico
+  const entries=[]; // {key,tokens,ingredient_name,sources:Set} de lo ya añadido
   recipesList.forEach(r=>{
+    const recipeName=r.name||'';
     buildIngredientLines(r).forEach(line=>{
       const t=line.trim();if(!t)return;
       const key=normIngKey(t);
-      if(ingMap[key])return; // ya está exactamente igual
+      const existing=entries.find(e=>e.key===key);
+      if(existing){
+        if(recipeName)existing.sources.add(recipeName);
+        if(ingMap[key])ingMap[key].source_recipes=Array.from(existing.sources).join(', ');
+        return;
+      }
       const tokens=new Set(ingTokens(t));
       // ¿Esta línea es una versión más genérica/específica de un ingrediente ya en la lista?
       // Ej. "Pollo" (Emma) y "Pollo a la plancha" (adultos) -> nos quedamos solo con el más específico.
       const matches=entries.filter(e=>isSubset(tokens,e.tokens)||isSubset(e.tokens,tokens));
       if(matches.length===1){
         const m=matches[0];
+        if(recipeName)m.sources.add(recipeName);
         if(tokens.size>m.tokens.size){
           delete ingMap[m.key];
           const cat=getCategoryForIngredient(t)||'Despensa';
-          ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};
           m.key=key;m.tokens=tokens;m.ingredient_name=t;
+          ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false,source_recipes:Array.from(m.sources).join(', ')};
+        }else if(ingMap[m.key]){
+          ingMap[m.key].source_recipes=Array.from(m.sources).join(', ');
         }
         return; // ya cubierto por el existente (o por el que acabamos de sustituir)
       }
       const cat=getCategoryForIngredient(t)||'Despensa';
-      ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false};
-      entries.push({key,tokens,ingredient_name:t});
+      const sources=new Set(recipeName?[recipeName]:[]);
+      ingMap[key]={list_id:listId,ingredient_name:t,unit:'',category:cat,checked:false,source_recipes:Array.from(sources).join(', ')};
+      entries.push({key,tokens,ingredient_name:t,sources});
     });
   });
   return ingMap;
@@ -2397,7 +2412,7 @@ function renderShoppingList(items){
     return `<div class="list-item ${item.checked?'checked':''}" id="item-${item.id}">
       <input type="checkbox" ${item.checked?'checked':''} onchange="toggleItem('${item.id}',this.checked)">
       <div style="flex:1;min-width:0;">
-        <div class="item-name">${item.ingredient_name}</div>
+        <div class="item-name"${item.source_recipes&&item.source_recipes.trim()?` data-src="${escAttr(item.source_recipes)}" onclick="showIngredientSource(this)" style="cursor:pointer;"`:''}>${item.ingredient_name}</div>
         ${sub?`<div class="item-sub">${sub}</div>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
