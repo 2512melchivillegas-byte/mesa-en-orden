@@ -2807,6 +2807,22 @@ async function cargarMenuEnPlanificador(menu,opts={}){
       currentMenu[d.day_of_week].bebe[d.meal_time]={recipe:rec,skipped:!!d.skipped};
     }
   });
+  // Sincronizar el selector "¿Desde qué día empieza tu semana?" y "¿Cuántos días?" con las
+  // fechas reales del menú cargado. Si no se hace esto, al volver a pulsar "Confirmar" o
+  // "Actualizar lista de compra" se recalcula la fecha de inicio con el valor por defecto
+  // (que puede no coincidir) y se crea un menú duplicado en vez de actualizar el existente.
+  const loadedDayKeys=Object.keys(currentMenu).sort();
+  if(loadedDayKeys.length){
+    const firstDate=new Date(loadedDayKeys[0]+'T00:00:00');
+    weekStart=DOW_SUN[firstDate.getDay()];
+    weekLength=loadedDayKeys.length;
+    document.querySelectorAll('#weekDayPicker .week-day-btn').forEach(b=>{
+      b.classList.toggle('selected',b.getAttribute('onclick')===`selectWeekStart('${weekStart}',this)`);
+    });
+    document.querySelectorAll('#weekLengthPicker .week-day-btn').forEach(b=>{
+      b.classList.toggle('selected',b.getAttribute('onclick')===`selectWeekLength(${weekLength},this)`);
+    });
+  }
   return true;
 }
 async function loadCurrentConfirmedMenu(){
