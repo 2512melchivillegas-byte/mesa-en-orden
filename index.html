@@ -2530,7 +2530,7 @@ function renderShoppingList(items){
   let filtered=items;
   if(_shopSearch)filtered=filtered.filter(i=>normTxt(i.ingredient_name).includes(_shopSearch));
   if(_shopFilter)filtered=filtered.filter(i=>(i.category||'Otros')===_shopFilter);
-  const CATS=['Frescos','Carnicería y pescadería','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
+  const CATS=['Carnicería y pescadería','Frescos','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
   const byCategory={};
   filtered.forEach(item=>{const cat=item.category||'Otros';if(!byCategory[cat])byCategory[cat]=[];byCategory[cat].push(item);});
   const unchecked={},checkedCat={};
