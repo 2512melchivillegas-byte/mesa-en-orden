@@ -1967,10 +1967,10 @@ async function generateMenu(){
         if(match?.id)usedBebeComidaThisWeek.add(match.id);
         return;
       }
-      const poolAll=recipes.filter(r=>r.category==='bebe'&&(r.meal_time||[]).includes(mt));
-      const poolFresh=poolAll.filter(r=>!recentBebeIds.has(r.id));
-      const finalPool=poolFresh.length?poolFresh:poolAll;
-      currentMenu[day].bebe[mt]={recipe:finalPool.length?finalPool[Math.floor(Math.random()*finalPool.length)]:null,skipped:false};
+      // Por defecto solo se genera la comida de Emma; el resto de comidas
+      // (desayuno, media mañana, merienda, cena) quedan como "no preparado"
+      // salvo que el usuario active el toggle manualmente para esa comida.
+      currentMenu[day].bebe[mt]={recipe:null,skipped:true};
     });
   });
   renderPlanner();showPlannerActions();
