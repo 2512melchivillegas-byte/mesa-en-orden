@@ -2155,8 +2155,16 @@ function getMealSlot(day,tab,mealTime){
   return tab==='adulto'?currentMenu[day].adulto:(currentMenu[day].bebe||{})[mealTime];
 }
 function setMealSlotRecipe(day,tab,mealTime,recipe){
-  if(tab==='adulto')currentMenu[day].adulto={recipe,skipped:false};
-  else{if(!currentMenu[day].bebe)currentMenu[day].bebe={};currentMenu[day].bebe[mealTime]={recipe,skipped:false};}
+  if(tab==='adulto'){
+    currentMenu[day].adulto={recipe,skipped:false};
+    if(recipe?.protein_type){
+      currentMenu[day].protein=recipe.protein_type;
+      // Mantener la comida de Emma sincronizada con la receta de adulto de ese día,
+      // también cuando el cambio viene de un swap de pieza (🔁) y no de un cambio de receta completa.
+      const match=pickBestBebeComida(recipe);
+      if(match){if(!currentMenu[day].bebe)currentMenu[day].bebe={};currentMenu[day].bebe.comida={recipe:match,skipped:false};}
+    }
+  }else{if(!currentMenu[day].bebe)currentMenu[day].bebe={};currentMenu[day].bebe[mealTime]={recipe,skipped:false};}
 }
 let _swapContext=null,_pendingSwap=null;
 function openSwapPieza(day,tab,mealTime,pieceId){
