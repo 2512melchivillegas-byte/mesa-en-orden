@@ -906,15 +906,15 @@ function getCategoryForIngredient(name){
   const kw=[
     {k:['pollo','pechuga','muslo','pavo','ternera','carne','lomo','cerdo','cordero','vacuno','salchicha','chorizo','bacon','baicon','panceta','tocino','chicharron','costilla','jamón','salmón','merluza','atún','bonito','bacalao','gambas','langostino','pescado','marisco'],c:'Carnicería y pescadería'},
     {k:['leche','queso','yogur','nata','mantequilla','crema'],c:'Refrigerados'},
-    {k:['huevo','tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','calabaza','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz','aguacate','fruta','manzana','naranja','plátano','banana','fresa','melón','uva','pera','melocotón','kiwi','piña','mango','limón'],c:'Frescos'},
-    {k:['congelado','helado'],c:'Congelados'},
+    {k:['huevo','tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','calabaza','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz','aguacate','champiñon','boniato','remolacha','cilantro','fruta','manzana','naranja','plátano','banano','banana','fresa','melón','uva','pera','melocotón','kiwi','piña','mango','limón'],c:'Frescos'},
+    {k:['congelado','congelada','helado'],c:'Congelados'},
     {k:['pan','tortilla','galleta','harina','cereales','bollería','café','manzanilla','infusión','cacao','cola cao','miel','mermelada','tostada'],c:'Desayuno y panadería'},
     {k:['arroz','pasta','espagueti','macarrón','legumbre','garbanzo','lenteja','frijol','conserva','aceite','vinagre','sal','especia','azúcar','salsa','mayonesa'],c:'Despensa'},
     {k:['agua','refresco','zumo','bebida vegetal'],c:'Bebidas'},
     {k:['patatas fritas','fruto seco','chocolate','palomita','aperitivo'],c:'Snacks'},
     {k:['pañal','potito','papilla'],c:'Bebé'},
     {k:['champú','gel','desodorante','crema','enjuague','compresa','protector','pañito'],c:'Higiene personal'},
-    {k:['jabón','detergente','limpiahogar','limpiapisos','limpiabaños','cristal','papel higiénico','papel cocina','papel aluminio','esponja','bolsa','ambientador','fairy'],c:'Limpieza'},
+    {k:['jabón','detergente','limpiahogar','limpiapisos','limpiabaños','cristal','papel higiénico','papel cocina','papel aluminio','servilleta','esponja','bolsa','ambientador','fairy'],c:'Limpieza'},
   ];
   for(const{k,c}of kw){if(k.some(w=>nkey.includes(normTxt(w))))return c;}
   return null;
