@@ -904,7 +904,7 @@ function getCategoryForIngredient(name){
   const nkey=normIngKey(name);
   if(ingredientDict[nkey])return ingredientDict[nkey];
   const kw=[
-    {k:['pollo','pechuga','muslo','pavo','ternera','carne','lomo','cerdo','cordero','vacuno','salchicha','chorizo','bacon','baicon','panceta','tocino','chicharron','costilla','jamón','salmón','merluza','atún','bonito','bacalao','gambas','langostino','pescado','marisco'],c:'Carnicería y pescadería'},
+    {k:['pollo','pechuga','muslo','pavo','ternera','carne','lomo','cerdo','cordero','vacuno','churrasco','salchicha','chorizo','bacon','baicon','panceta','tocino','chicharron','costilla','jamón','salmón','merluza','atún','bonito','bacalao','gambas','langostino','pescado','marisco'],c:'Carnicería y pescadería'},
     {k:['leche','queso','yogur','nata','mantequilla','crema'],c:'Refrigerados'},
     {k:['huevo','tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','calabaza','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz','aguacate','champiñon','boniato','remolacha','cilantro','fruta','manzana','naranja','plátano','banano','banana','fresa','melón','uva','pera','melocotón','kiwi','piña','mango','limón'],c:'Frescos'},
     {k:['congelado','congelada','helado'],c:'Congelados'},
@@ -933,7 +933,6 @@ const FOOD_EQUIV_WORDS={
   'pollo':'pollo','pechuga':'pollo','muslo':'pollo',
   'ternera':'ternera','vacuno':'ternera','carne':'carne',
   'cerdo':'cerdo','lomo':'cerdo',
-  'pescado':'pescado','merluza':'pescado','salmon':'pescado','bacalao':'pescado','atun':'pescado',
   'arroz':'arroz','brocoli':'brocoli',
   'tomate':'tomate','tomates':'tomate','calabaza':'calabaza',
   'lenteja':'lenteja','lentejas':'lenteja','garbanzo':'garbanzo','garbanzos':'garbanzo',
@@ -2879,8 +2878,8 @@ async function viewHistorialMenu(idx){
     const a=slot.adulto;
     const adultLine=a?(a.skipped?`<span class="meal-skipped">Fuera de casa</span>`:`<span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${(a.recipes?.name||'').replace(/'/g,"\\'")}')">${a.recipes?.name||'—'}</span>`):'';
     const bebeLines=BEBE_MEALS.map(mt=>{
-      const m=slot.bebe[mt];if(!m)return'';
-      const val=m.skipped?`<span class="meal-skipped">No preparado</span>`:`<span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${(m.recipes?.name||'').replace(/'/g,"\\'")}')">${m.recipes?.name||'—'}</span>`;
+      const m=slot.bebe[mt];if(!m||m.skipped)return'';
+      const val=`<span class="meal-name" style="cursor:pointer;text-decoration:underline dotted;color:var(--dark-green);" onclick="viewRecipeByName('${(m.recipes?.name||'').replace(/'/g,"\\'")}')">${m.recipes?.name||'—'}</span>`;
       const label=mt==='comida'?'👶 Emma':MEAL_LABELS[mt];
       return `<div class="meal-row"><span class="meal-time-label">${label}</span>${val}</div>`;
     }).join('');
