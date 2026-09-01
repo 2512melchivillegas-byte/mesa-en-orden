@@ -1994,7 +1994,7 @@ function getMenuShareRows(){
     const bebeLines=BEBE_MEALS.map(mt=>{
       const m=(slot.bebe||{})[mt];if(!m||m.skipped)return null;
       const text=m.recipe?m.recipe.name:'Sin receta';
-      return{label:MEAL_LABELS[mt],text};
+      return{label:mt==='comida'?'👶 Emma':MEAL_LABELS[mt],text};
     }).filter(Boolean);
     return{label:dayLabel(day),adultText,bebeLines};
   });
