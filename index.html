@@ -1992,8 +1992,8 @@ function getMenuShareRows(){
     const a=slot.adulto;
     const adultText=a?.skipped?'Fuera de casa':(a?.recipe?a.recipe.name:'Sin receta');
     const bebeLines=BEBE_MEALS.map(mt=>{
-      const m=(slot.bebe||{})[mt];if(!m)return null;
-      const text=m.skipped?'No preparado':(m.recipe?m.recipe.name:'Sin receta');
+      const m=(slot.bebe||{})[mt];if(!m||m.skipped)return null;
+      const text=m.recipe?m.recipe.name:'Sin receta';
       return{label:MEAL_LABELS[mt],text};
     }).filter(Boolean);
     return{label:dayLabel(day),adultText,bebeLines};
