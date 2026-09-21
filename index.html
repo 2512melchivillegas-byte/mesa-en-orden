@@ -888,11 +888,18 @@ function catSelect(id,val='Despensa'){
 // Normalización de nombres de ingredientes: quita acentos/mayúsculas, aplica sinónimos comunes
 // (patata/papa, aguacate/palta, etc.), quita palabras de enlace y ordena las palabras alfabéticamente
 // para que "carne en filete" y "filete de carne" se reconozcan como el mismo ingrediente sin duplicarse.
-const ING_SYNONYMS={'papa':'patata','papas':'patatas','zapallo':'calabaza','choclo':'maiz','palta':'aguacate'};
+const ING_SYNONYMS={'papa':'patata','papas':'patata','zapallo':'calabaza','choclo':'maiz','palta':'aguacate'};
 const ING_STOPWORDS=new Set(['de','del','la','el','los','las','en','con','y','al','a','un','una','sin','para']);
+// Singular/plural: si una palabra termina en vocal+s (patata->patatas, tomate->tomates,
+// huevo->huevos), la reducimos al singular para que ambas formas se reconozcan como el
+// mismo ingrediente y no aparezcan como dos líneas distintas en la lista de compra.
+function depluralize(w){
+  if(w.length>3&&w.endsWith('s')&&'aeiou'.includes(w[w.length-2]))return w.slice(0,-1);
+  return w;
+}
 function ingTokens(s){
   let t=normTxt(s).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
-  return t.split(' ').filter(Boolean).filter(w=>!ING_STOPWORDS.has(w)).map(w=>ING_SYNONYMS[w]||w);
+  return t.split(' ').filter(Boolean).filter(w=>!ING_STOPWORDS.has(w)).map(depluralize).map(w=>ING_SYNONYMS[w]||w);
 }
 function normIngKey(s){
   const words=ingTokens(s).slice();
