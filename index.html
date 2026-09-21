@@ -1881,16 +1881,21 @@ async function generateMenu(){
   const fixedDays=new Set(days.filter(d=>currentMenu[d]&&currentMenu[d].locked));
   const emptyDays=days.filter(d=>!fixedDays.has(d));
   if(!emptyDays.length){renderPlanner();showPlannerActions();showToast('Todos los días ya están fijados ✅');return;}
-  // Recetas usadas en las últimas 2 semanas confirmadas, para no repetir
+  // Recetas usadas en los últimos 15 días (por fecha real, no por número de menús confirmados),
+  // para no repetir la misma receta aunque las semanas confirmadas tengan tamaños distintos.
   const recentAdultIds=new Set(),recentBebeIds=new Set();
   try{
     const hhId=currentHousehold?.id;
-    let mq=sb.from('weekly_menus').select('id').eq('status','confirmed').order('week_start',{ascending:false}).limit(2);
+    const weekStartDate=new Date(days[0]+'T00:00:00');
+    const cutoff=new Date(weekStartDate);cutoff.setDate(cutoff.getDate()-15);
+    const cutoffISO=toISODate(cutoff);
+    const menuSearchFrom=new Date(cutoff);menuSearchFrom.setDate(menuSearchFrom.getDate()-14); // margen por si un menú de hasta 15 días empezó antes del corte
+    let mq=sb.from('weekly_menus').select('id').eq('status','confirmed').gte('week_start',toISODate(menuSearchFrom)).lt('week_start',days[0]);
     mq=hhId?mq.eq('household_id',hhId):mq.eq('user_id',currentUser.id);
     const{data:recentMenus}=await mq;
     const menuIds=(recentMenus||[]).map(m=>m.id);
     if(menuIds.length){
-      const{data:recentDays}=await sb.from('weekly_menu_days').select('recipe_id,person_type').in('menu_id',menuIds);
+      const{data:recentDays}=await sb.from('weekly_menu_days').select('recipe_id,person_type,day_of_week').in('menu_id',menuIds).gte('day_of_week',cutoffISO).lt('day_of_week',days[0]);
       (recentDays||[]).forEach(r=>{
         if(!r.recipe_id)return;
         if(r.person_type==='adulto')recentAdultIds.add(r.recipe_id);
