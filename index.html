@@ -484,6 +484,9 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       <div class="form-row"><label>Categoría</label><select id="rCategory" onchange="onRCategoryChange()"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
       <div class="form-row"><label>Proteína</label><select id="rProtein"><option value="">Sin proteína</option><option value="pollo">🍗 Pollo</option><option value="carne">🥩 Carne</option><option value="cerdo">🐖 Cerdo</option><option value="pescado">🐟 Pescado</option><option value="vegetal">🥦 Vegetal</option><option value="huevo">🥚 Huevo</option></select></div>
     </div>
+    <div class="form-row" id="rSundayOnlyWrap">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" id="rSundayOnly"> 📅 Solo para domingo o festivo (el generador no la usará entre semana)</label>
+    </div>
     <div class="form-row" id="rMealTimeWrap" style="display:none;">
       <label>Momentos del día (Emma)</label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
@@ -839,7 +842,7 @@ const MEAL_LABELS={desayuno:'🌅 Desayuno',media_manana:'🍎 Media mañana',co
 const MEAL_CHECKBOX_IDS=[['rMealDesayuno','desayuno'],['rMealMediaManana','media_manana'],['rMealComida','comida'],['rMealMerienda','merienda'],['rMealCena','cena']];
 function getMealTimeCheckboxes(){return MEAL_CHECKBOX_IDS.filter(([id])=>document.getElementById(id).checked).map(([,v])=>v);}
 function setMealTimeCheckboxes(mealTimes){const mt=(mealTimes&&mealTimes.length)?mealTimes:['comida'];MEAL_CHECKBOX_IDS.forEach(([id,v])=>{document.getElementById(id).checked=mt.includes(v);});}
-function onRCategoryChange(){document.getElementById('rMealTimeWrap').style.display=document.getElementById('rCategory').value==='bebe'?'block':'none';}
+function onRCategoryChange(){const isBebe=document.getElementById('rCategory').value==='bebe';document.getElementById('rMealTimeWrap').style.display=isBebe?'block':'none';document.getElementById('rSundayOnlyWrap').style.display=isBebe?'none':'block';}
 const DOW_SUN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 function toISODate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function isISODate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
@@ -1711,7 +1714,7 @@ function filterProtein(protein,btn){activeProtein=protein;document.querySelector
 function openAddRecipe(){
   editingRecipeId=null;document.getElementById('recipeModalTitle').textContent='Nueva receta';
   ['rName','rIngredients','rNotes','rVideo','rPiezaProteina','rPiezaCarbo','rPiezaEnsalada','rPiezaOtro'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';
+  document.getElementById('rCategory').value=activeRecipeTab;document.getElementById('rProtein').value='';document.getElementById('rSundayOnly').checked=false;
   setMealTimeCheckboxes(['comida']);onRCategoryChange();
   pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
   ['proteina','carbohidrato','ensalada','otro'].forEach(renderPiezaChips);
@@ -1807,6 +1810,7 @@ function editRecipe(id){
   document.getElementById('rName').value=r.name;document.getElementById('rCategory').value=r.category;
   setMealTimeCheckboxes(r.meal_time);onRCategoryChange();
   document.getElementById('rProtein').value=r.protein_type||'';
+  document.getElementById('rSundayOnly').checked=!!r.sunday_only;
   pendingPieces={proteina:[],carbohidrato:[],ensalada:[],otro:[]};
   (r.pieces||[]).forEach(p=>{if(pendingPieces[p.role])pendingPieces[p.role].push({id:p.id,name:p.name});});
   ['proteina','carbohidrato','ensalada','otro'].forEach(renderPiezaChips);
@@ -1824,7 +1828,7 @@ async function saveRecipe(){
   }
   const rCat=document.getElementById('rCategory').value;
   const rMealTimes=rCat==='bebe'?(getMealTimeCheckboxes().length?getMealTimeCheckboxes():['comida']):['comida'];
-  const data={name,category:rCat,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:rMealTimes};
+  const data={name,category:rCat,protein_type:document.getElementById('rProtein').value||null,ingredients_list:document.getElementById('rIngredients').value.trim()||null,preparation_notes:document.getElementById('rNotes').value.trim()||null,video_url:document.getElementById('rVideo').value.trim()||null,meal_time:rMealTimes,sunday_only:rCat==='adulto'?document.getElementById('rSundayOnly').checked:false};
   const lines=(data.ingredients_list||'').split('\n').map(l=>l.trim()).filter(Boolean);
   const unknown=lines.filter(l=>!getCategoryForIngredient(l));
   if(unknown.length){
@@ -1956,8 +1960,10 @@ async function generateMenu(){
   });
   // Inicializar currentMenu preservando fijados
   let ranOutOfFresh=false,styleRepeated=false,exactRepeated=false;
-  function pickAdultForProtein(protein){
-    const apAll=ar.filter(r=>r.protein_type===protein);
+  function pickAdultForProtein(protein,day){
+    const isSunday=new Date(day+'T00:00:00').getDay()===0;
+    let apAll=ar.filter(r=>r.protein_type===protein);
+    if(!isSunday)apAll=apAll.filter(r=>!r.sunday_only);
     if(!apAll.length)return{pool:[],ranOutOfFresh:false,styleRepeated:false};
     const apFresh=apAll.filter(r=>!recentAdultIds.has(r.id));
     const ranOutOfFresh=!apFresh.length;
@@ -1978,7 +1984,7 @@ async function generateMenu(){
   days.forEach(day=>{
     if(fixedDays.has(day))return; // no tocar fijados
     let protein=assigned[day];
-    let res=pickAdultForProtein(protein);
+    let res=pickAdultForProtein(protein,day);
     if(!res.pool.length){
       // Esta proteína ya no tiene recetas sin repetir esta semana (ej. "vegetal" con una sola
       // receta en el catálogo). Antes de repetir la receta exacta, probamos otras proteínas
@@ -1990,7 +1996,7 @@ async function generateMenu(){
         return aBad-bBad||Math.random()-0.5;
       });
       for(const alt of alternatives){
-        const altRes=pickAdultForProtein(alt);
+        const altRes=pickAdultForProtein(alt,day);
         if(altRes.pool.length){protein=alt;res=altRes;break;}
       }
     }
@@ -2255,7 +2261,7 @@ async function confirmSaveAsNewRecipe(){
   const name=document.getElementById('saveAsRecipeName').value.trim();
   if(!name){alert('Ponle un nombre a la nueva receta');return;}
   const{day,tab,mealTime,newPieces,baseRecipe}=_pendingSwap;
-  const data={name,category:baseRecipe.category,protein_type:baseRecipe.protein_type||null,ingredients_list:baseRecipe.ingredients_list||null,preparation_notes:baseRecipe.preparation_notes||null,video_url:baseRecipe.video_url||null,meal_time:baseRecipe.meal_time||['comida']};
+  const data={name,category:baseRecipe.category,protein_type:baseRecipe.protein_type||null,ingredients_list:baseRecipe.ingredients_list||null,preparation_notes:baseRecipe.preparation_notes||null,video_url:baseRecipe.video_url||null,meal_time:baseRecipe.meal_time||['comida'],sunday_only:!!baseRecipe.sunday_only};
   const{data:inserted,error}=await sb.from('recipes').insert(data).select().single();
   if(error||!inserted){alert('No se pudo guardar la receta nueva');return;}
   const pieceIds=newPieces.map(p=>p.id);
