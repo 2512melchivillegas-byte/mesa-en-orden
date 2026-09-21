@@ -1903,6 +1903,20 @@ async function generateMenu(){
       });
     }
   }catch(e){console.error('No se pudo revisar el historial reciente',e);}
+  // "Pieza principal" de una receta: la proteína ya preparada (ej. "Merluza apanada",
+  // "Carne a la plancha"), para detectar que dos recetas distintas son en el fondo el mismo
+  // plato con distinta guarnición (ej. "Merluza apanada con ensalada lechuga" vs "... aguacate y maíz").
+  const PROTEIN_PIECE_HINTS=['pollo','pechuga','muslo','pavo','ternera','carne','lomo','cerdo','cordero','vacuno','churrasco','salchicha','chorizo','bacon','baicon','panceta','tocino','chicharron','costilla','jamón','jamon','salmón','salmon','merluza','atún','atun','bonito','bacalao','gambas','langostino','pescado','huevo','garbanzo','lenteja','frijol','albóndiga','albondiga','hamburguesa'];
+  function mainPieceKey(r){
+    if(!r)return null;
+    const pcs=r.pieces||[];
+    const hits=pcs.filter(p=>{const n=normTxt(p.name||'');return PROTEIN_PIECE_HINTS.some(h=>n.includes(normTxt(h)));});
+    const target=hits.length===1?hits[0]:(pcs[0]||null);
+    return normTxt((target?target.name:r.name)||'');
+  }
+  const recipesById=new Map(recipes.map(r=>[r.id,r]));
+  const recentPieceKeys=new Set();
+  recentAdultIds.forEach(id=>{const k=mainPieceKey(recipesById.get(id));if(k)recentPieceKeys.add(k);});
   // Proteínas ya usadas en días fijados
   const usedProteins={};
   days.forEach(d=>{if(currentMenu[d]?.locked&&currentMenu[d].protein)usedProteins[d]=currentMenu[d].protein;});
@@ -1919,9 +1933,10 @@ async function generateMenu(){
   days.forEach(d=>{if(currentMenu[d]?.locked){const st=recipeStyle(currentMenu[d].adulto?.recipe);if(st)usedStyles.add(st);}});
   // Recetas ya usadas en ESTA misma semana (fijadas o ya asignadas en esta pasada de Generar),
   // para no repetir la receta exacta dos veces en la semana.
-  const usedAdultThisWeek=new Set(),usedBebeComidaThisWeek=new Set();
+  const usedAdultThisWeek=new Set(),usedBebeComidaThisWeek=new Set(),usedPieceKeysThisWeek=new Set();
   days.forEach(d=>{if(currentMenu[d]?.locked){
     if(currentMenu[d].adulto?.recipe?.id)usedAdultThisWeek.add(currentMenu[d].adulto.recipe.id);
+    const pk=mainPieceKey(currentMenu[d].adulto?.recipe);if(pk)usedPieceKeysThisWeek.add(pk);
     const bc=currentMenu[d].bebe?.comida?.recipe?.id;if(bc)usedBebeComidaThisWeek.add(bc);
   }});
   // Distribuir proteínas para los días vacíos sin repetir en días consecutivos
@@ -1947,6 +1962,13 @@ async function generateMenu(){
     const apFresh=apAll.filter(r=>!recentAdultIds.has(r.id));
     const ranOutOfFresh=!apFresh.length;
     let ap=apFresh.length?apFresh:apAll;
+    // Evitar repetir la misma "pieza principal" (ej. Merluza apanada) de los últimos 15 días,
+    // aunque la receta completa (con otra guarnición) tenga un id distinto.
+    const apPieceFresh=ap.filter(r=>!recentPieceKeys.has(mainPieceKey(r)));
+    ap=apPieceFresh.length?apPieceFresh:ap;
+    // Tampoco repetir la misma pieza principal dos veces dentro de esta misma semana.
+    const apPieceThisWeekOk=ap.filter(r=>!usedPieceKeysThisWeek.has(mainPieceKey(r)));
+    ap=apPieceThisWeekOk.length?apPieceThisWeekOk:ap;
     const apStyleOk=ap.filter(r=>{const st=recipeStyle(r);return !st||!usedStyles.has(st);});
     const styleRepeated=!apStyleOk.length;
     ap=apStyleOk.length?apStyleOk:ap;
@@ -1980,6 +2002,7 @@ async function generateMenu(){
     if(adultoRecipe){
       const st=recipeStyle(adultoRecipe);if(st)usedStyles.add(st);
       usedAdultThisWeek.add(adultoRecipe.id);
+      const pk=mainPieceKey(adultoRecipe);if(pk)usedPieceKeysThisWeek.add(pk);
     }
     if(!currentMenu[day])currentMenu[day]={};
     currentMenu[day].adulto={recipe:adultoRecipe,skipped:false};
