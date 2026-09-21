@@ -358,6 +358,17 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
       </div>
     </div>
 
+    <div class="modal-overlay" id="ingredientSourceModal">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+          <div class="modal-title" id="ingSrcTitle">🏷️ Ingrediente</div>
+          <button class="btn-icon" onclick="closeModal('ingredientSourceModal')">✕</button>
+        </div>
+        <p class="text-muted" style="font-size:13px;margin-bottom:0.75rem;">De qué recetas viene y qué día toca — así sabes cuánto de fresco lo necesitas.</p>
+        <div id="ingSrcList" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;"></div>
+      </div>
+    </div>
+
     <div class="page" id="pageCompra">
       <div class="section-header">
         <div class="page-title">Lista de compra</div>
@@ -2443,9 +2454,37 @@ function buildIngredientLines(r){
   return lines.map(stripStrayCategoryLabel);
 }
 function escAttr(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function showIngredientSource(el){
+async function showIngredientSource(el){
   const src=el.dataset.src;if(!src)return;
-  showToast((src.includes(',')?'De las recetas: ':'De la receta: ')+src);
+  const names=src.split(',').map(s=>s.trim()).filter(Boolean);
+  document.getElementById('ingSrcTitle').textContent='🏷️ '+(el.textContent||'Ingrediente');
+  document.getElementById('ingSrcList').innerHTML='<div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:13px;">Buscando en el menú...</div>';
+  document.getElementById('ingredientSourceModal').classList.add('open');
+  let rows=[];
+  try{
+    const{data:listRow}=await sb.from('shopping_lists').select('menu_id').eq('id',currentListId).single();
+    if(listRow?.menu_id){
+      const{data:days}=await sb.from('weekly_menu_days').select('day_of_week,person_type,recipes(name)').eq('menu_id',listRow.menu_id);
+      rows=(days||[]).filter(d=>d.recipes?.name&&names.includes(d.recipes.name));
+      rows.sort((a,b)=>a.day_of_week.localeCompare(b.day_of_week));
+    }
+  }catch(e){console.error('No se pudo ubicar el día de estas recetas',e);}
+  if(!rows.length){
+    // Sin coincidencia de fecha (ej. lista sin menú asociado): al menos mostramos las recetas
+    document.getElementById('ingSrcList').innerHTML=names.map(n=>`
+      <div style="padding:10px 12px;background:var(--beige);border-radius:8px;font-weight:600;">${n}</div>
+    `).join('');
+    return;
+  }
+  document.getElementById('ingSrcList').innerHTML=rows.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--beige);border-radius:8px;">
+      <div style="min-width:0;">
+        <div style="font-weight:600;overflow-wrap:break-word;">${r.recipes.name}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${r.person_type==='adulto'?'👤 Adultos':'👶 Emma'}</div>
+      </div>
+      <div style="font-weight:700;color:var(--dark-green);white-space:nowrap;flex-shrink:0;">${dayLabel(r.day_of_week)}</div>
+    </div>
+  `).join('');
 }
 function isSubset(a,b){for(const x of a)if(!b.has(x))return false;return true;}
 function buildIngredientItemMap(recipesList,listId){
