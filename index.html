@@ -60,6 +60,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
 .badge-pescado { background:#DBEAFE; color:#1E40AF; }
 .badge-vegetal { background:#DCFCE7; color:#166534; }
 .badge-huevo { background:#FFF7ED; color:#9A3412; }
+.badge-hamburguesa { background:#FFEDD5; color:#9A3412; }
 .badge-adulto { background:#E0E7FF; color:#3730A3; }
 .badge-bebe { background:#FCE7F3; color:#9D174D; }
 .btn { padding:8px 14px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:inherit; }
@@ -275,6 +276,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
           <button class="filter-btn" onclick="filterProtein('pescado',this)">🐟 Pescado</button>
           <button class="filter-btn" onclick="filterProtein('vegetal',this)">🥦 Vegetal</button>
           <button class="filter-btn" onclick="filterProtein('huevo',this)">🥚 Huevo</button>
+          <button class="filter-btn" onclick="filterProtein('hamburguesa',this)">🍔 Hamburguesa</button>
           <button class="filter-btn" onclick="filterProtein('__missing__',this)">⚠️ Sin ingredientes</button>
         </div>
         <div id="recipesList"><div class="loading">Cargando...</div></div>
@@ -482,7 +484,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row"><label>Nombre *</label><input type="text" id="rName" placeholder="Ej: Pollo al limón con arroz"></div>
     <div class="form-grid">
       <div class="form-row"><label>Categoría</label><select id="rCategory" onchange="onRCategoryChange()"><option value="adulto">Adultos</option><option value="bebe">Emma</option></select></div>
-      <div class="form-row"><label>Proteína</label><select id="rProtein"><option value="">Sin proteína</option><option value="pollo">🍗 Pollo</option><option value="carne">🥩 Carne</option><option value="cerdo">🐖 Cerdo</option><option value="pescado">🐟 Pescado</option><option value="vegetal">🥦 Vegetal</option><option value="huevo">🥚 Huevo</option></select></div>
+      <div class="form-row"><label>Proteína</label><select id="rProtein"><option value="">Sin proteína</option><option value="pollo">🍗 Pollo</option><option value="carne">🥩 Carne</option><option value="cerdo">🐖 Cerdo</option><option value="pescado">🐟 Pescado</option><option value="vegetal">🥦 Vegetal</option><option value="huevo">🥚 Huevo</option><option value="hamburguesa">🍔 Hamburguesa</option></select></div>
     </div>
     <div class="form-row" id="rSundayOnlyWrap">
       <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" id="rSundayOnly"> 📅 Solo para domingo o festivo (el generador no la usará entre semana)</label>
@@ -1708,7 +1710,7 @@ function renderRecipes(){
     ${r.preparation_notes?`<div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.5;">${r.preparation_notes.substring(0,140)}${r.preparation_notes.length>140?'…':''}</div>`:''}
   </div>`).join('');
 }
-function eP(p){return{pollo:'🍗',carne:'🥩',cerdo:'🐖',pescado:'🐟',vegetal:'🥦',huevo:'🥚'}[p]||'';}
+function eP(p){return{pollo:'🍗',carne:'🥩',cerdo:'🐖',pescado:'🐟',vegetal:'🥦',huevo:'🥚',hamburguesa:'🍔'}[p]||'';}
 function switchRecipeTab(tab,btn){activeRecipeTab=tab;document.querySelectorAll('#pageRecetas .tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderRecipes();persistNav();}
 function filterProtein(protein,btn){activeProtein=protein;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderRecipes();}
 function openAddRecipe(){
@@ -1944,7 +1946,7 @@ async function generateMenu(){
     const bc=currentMenu[d].bebe?.comida?.recipe?.id;if(bc)usedBebeComidaThisWeek.add(bc);
   }});
   // Distribuir proteínas para los días vacíos sin repetir en días consecutivos
-  const pool=['pollo','carne','pescado','cerdo','vegetal'];
+  const pool=['pollo','carne','pescado','cerdo','vegetal','hamburguesa'];
   function pickProtein(dayIndex,assigned){
     const prevDay=days[dayIndex-1];const nextDay=days[dayIndex+1];
     const prevP=assigned[prevDay]||(currentMenu[prevDay]?.protein)||null;
