@@ -3013,6 +3013,13 @@ async function saveBudget(){
 
 // UTILS
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+// Tocar fuera del recuadro del modal (en el fondo oscurecido) también lo cierra,
+// igual en todos los modales de la app, sin tener que buscar la X.
+document.addEventListener('click',function(e){
+  if(e.target.classList&&e.target.classList.contains('modal-overlay')&&e.target.classList.contains('open')){
+    e.target.classList.remove('open');
+  }
+});
 function closeRecipeView(){
   closeModal('recipeViewModal');
   if(_recipeViewFromHistorial){
