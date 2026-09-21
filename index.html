@@ -1936,20 +1936,42 @@ async function generateMenu(){
   });
   // Inicializar currentMenu preservando fijados
   let ranOutOfFresh=false,styleRepeated=false,exactRepeated=false;
-  days.forEach(day=>{
-    if(fixedDays.has(day))return; // no tocar fijados
-    const protein=assigned[day];
+  function pickAdultForProtein(protein){
     const apAll=ar.filter(r=>r.protein_type===protein);
+    if(!apAll.length)return{pool:[],ranOutOfFresh:false,styleRepeated:false};
     const apFresh=apAll.filter(r=>!recentAdultIds.has(r.id));
-    if(apAll.length&&!apFresh.length)ranOutOfFresh=true;
+    const ranOutOfFresh=!apFresh.length;
     let ap=apFresh.length?apFresh:apAll;
     const apStyleOk=ap.filter(r=>{const st=recipeStyle(r);return !st||!usedStyles.has(st);});
-    if(ap.length&&!apStyleOk.length)styleRepeated=true;
+    const styleRepeated=!apStyleOk.length;
     ap=apStyleOk.length?apStyleOk:ap;
     const apNotUsed=ap.filter(r=>!usedAdultThisWeek.has(r.id));
-    if(ap.length&&!apNotUsed.length)exactRepeated=true;
-    ap=apNotUsed.length?apNotUsed:ap;
-    const adultoRecipe=ap.length?ap[Math.floor(Math.random()*ap.length)]:null;
+    return{pool:apNotUsed,fallbackPool:ap,ranOutOfFresh,styleRepeated};
+  }
+  days.forEach(day=>{
+    if(fixedDays.has(day))return; // no tocar fijados
+    let protein=assigned[day];
+    let res=pickAdultForProtein(protein);
+    if(!res.pool.length){
+      // Esta proteína ya no tiene recetas sin repetir esta semana (ej. "vegetal" con una sola
+      // receta en el catálogo). Antes de repetir la receta exacta, probamos otras proteínas
+      // que sí tengan opciones disponibles, priorizando las que no choquen con el día anterior/siguiente.
+      const prevP=currentMenu[days[days.indexOf(day)-1]]?.protein||null;
+      const nextP=currentMenu[days[days.indexOf(day)+1]]?.protein||null;
+      const alternatives=pool.filter(p=>p!==protein).sort((a,b)=>{
+        const aBad=(a===prevP||a===nextP)?1:0,bBad=(b===prevP||b===nextP)?1:0;
+        return aBad-bBad||Math.random()-0.5;
+      });
+      for(const alt of alternatives){
+        const altRes=pickAdultForProtein(alt);
+        if(altRes.pool.length){protein=alt;res=altRes;break;}
+      }
+    }
+    if(res.ranOutOfFresh)ranOutOfFresh=true;
+    if(res.styleRepeated)styleRepeated=true;
+    let ap=res.pool.length?res.pool:res.fallbackPool;
+    if(res.fallbackPool&&!res.pool.length)exactRepeated=true;
+    const adultoRecipe=(ap&&ap.length)?ap[Math.floor(Math.random()*ap.length)]:null;
     if(adultoRecipe){
       const st=recipeStyle(adultoRecipe);if(st)usedStyles.add(st);
       usedAdultThisWeek.add(adultoRecipe.id);
