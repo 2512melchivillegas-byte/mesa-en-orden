@@ -388,7 +388,8 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <div class="scroll-fade-wrap">
         <div id="shopFilterScroll" style="overflow-x:auto;white-space:nowrap;padding-bottom:2px;" onscroll="onShopFilterScroll(this)">
           <button class="filter-btn active" onclick="onShopFilter('',this)" title="Todas">Todas</button>
-          <button class="filter-btn" onclick="onShopFilter('Frescos',this)" title="Frescos">🍊 Frescos</button>
+          <button class="filter-btn" onclick="onShopFilter('Verduras',this)" title="Verduras">🥦 Verduras</button>
+          <button class="filter-btn" onclick="onShopFilter('Frutas',this)" title="Frutas">🍊 Frutas</button>
           <button class="filter-btn" onclick="onShopFilter('Carnicería y pescadería',this)" title="Carnicería y pescadería">🥩 Carne</button>
           <button class="filter-btn" onclick="onShopFilter('Refrigerados',this)" title="Refrigerados">🧀 Refrig.</button>
           <button class="filter-btn" onclick="onShopFilter('Congelados',this)" title="Congelados">❄️ Congel.</button>
@@ -589,7 +590,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
     <div class="form-row"><label>Producto *</label><input type="text" id="manualName" placeholder="Ej: Papel higiénico"></div>
     <div class="form-grid">
       <div class="form-row"><label>Cantidad</label><input type="text" id="manualQty" placeholder="Ej: ×2"></div>
-      <div class="form-row"><label>Categoría</label><select id="manualCat"><option value="Frescos">🍊 Frescos</option><option value="Carnicería y pescadería">🥩 Carnicería y pescadería</option><option value="Refrigerados">🧀 Refrigerados</option><option value="Congelados">❄️ Congelados</option><option value="Desayuno y panadería">🥣 Desayuno y panadería</option><option value="Despensa" selected>🫙 Despensa</option><option value="Bebidas">🥤 Bebidas</option><option value="Snacks">🍿 Snacks</option><option value="Bebé">🍼 Bebé</option><option value="Higiene personal">🧴 Higiene personal</option><option value="Limpieza">🧹 Limpieza</option></select></div>
+      <div class="form-row"><label>Categoría</label><select id="manualCat"><option value="Verduras">🥦 Verduras</option><option value="Frutas">🍊 Frutas</option><option value="Carnicería y pescadería">🥩 Carnicería y pescadería</option><option value="Refrigerados">🧀 Refrigerados</option><option value="Congelados">❄️ Congelados</option><option value="Desayuno y panadería">🥣 Desayuno y panadería</option><option value="Despensa" selected>🫙 Despensa</option><option value="Bebidas">🥤 Bebidas</option><option value="Snacks">🍿 Snacks</option><option value="Bebé">🍼 Bebé</option><option value="Higiene personal">🧴 Higiene personal</option><option value="Limpieza">🧹 Limpieza</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('manualItemModal')">Cancelar</button>
@@ -602,7 +603,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;"><div class="modal-title" style="margin-bottom:0;">Cambiar categoría</div><button class="btn-icon" onclick="closeModal('categoryPickerModal')" title="Cerrar">✕</button></div>
     <div class="form-row"><label id="categoryPickerItemName" style="font-weight:600;"></label></div>
-    <div class="form-row"><select id="categoryPickerSelect"><option value="Frescos">🍊 Frescos</option><option value="Carnicería y pescadería">🥩 Carnicería y pescadería</option><option value="Refrigerados">🧀 Refrigerados</option><option value="Congelados">❄️ Congelados</option><option value="Desayuno y panadería">🥣 Desayuno y panadería</option><option value="Despensa">🫙 Despensa</option><option value="Bebidas">🥤 Bebidas</option><option value="Snacks">🍿 Snacks</option><option value="Bebé">🍼 Bebé</option><option value="Higiene personal">🧴 Higiene personal</option><option value="Limpieza">🧹 Limpieza</option></select></div>
+    <div class="form-row"><select id="categoryPickerSelect"><option value="Verduras">🥦 Verduras</option><option value="Frutas">🍊 Frutas</option><option value="Carnicería y pescadería">🥩 Carnicería y pescadería</option><option value="Refrigerados">🧀 Refrigerados</option><option value="Congelados">❄️ Congelados</option><option value="Desayuno y panadería">🥣 Desayuno y panadería</option><option value="Despensa">🫙 Despensa</option><option value="Bebidas">🥤 Bebidas</option><option value="Snacks">🍿 Snacks</option><option value="Bebé">🍼 Bebé</option><option value="Higiene personal">🧴 Higiene personal</option><option value="Limpieza">🧹 Limpieza</option></select></div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Se recuerda para las próximas semanas.</div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('categoryPickerModal')">Cancelar</button>
@@ -625,7 +626,8 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <input type="text" id="plantillaNewName" placeholder="Añadir producto nuevo a la plantilla..." style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--beige);">
         <div style="display:flex;gap:6px;">
           <select id="plantillaNewCat" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--white);">
-            <option value="Frescos">🍊 Frescos</option>
+            <option value="Verduras">🥦 Verduras</option>
+            <option value="Frutas">🍊 Frutas</option>
             <option value="Carnicería y pescadería">🥩 Carne y pescado</option>
             <option value="Refrigerados">🧀 Refrigerados</option>
             <option value="Congelados">❄️ Congelados</option>
@@ -669,7 +671,8 @@ body { font-family: 'Nunito', sans-serif; background: var(--beige); color: var(-
         <div style="display:flex;gap:6px;">
           <input type="text" id="habitualQty" placeholder="Cantidad (opcional, ej: ×2)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--white);">
           <select id="habitualCat" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--white);">
-            <option value="Frescos">🍊 Frescos</option>
+            <option value="Verduras">🥦 Verduras</option>
+            <option value="Frutas">🍊 Frutas</option>
             <option value="Carnicería y pescadería">🥩 Carne y pescado</option>
             <option value="Refrigerados">🧀 Refrigerados</option>
             <option value="Congelados">❄️ Congelados</option>
@@ -860,17 +863,18 @@ const BASICOS_FIJOS=[
   {name:'Queso en lonchas',qty:'×3',cat:'Refrigerados'},
   {name:'Jamón',qty:'×1',cat:'Carnicería y pescadería'},
   {name:'Queso rallado',qty:'×2',cat:'Refrigerados'},
-  {name:'Huevos',qty:'1 docena',cat:'Frescos'},
+  {name:'Huevos',qty:'1 docena',cat:'Despensa'},
   {name:'Pan de molde',qty:'×1',cat:'Desayuno y panadería'},
   {name:'Tortillas de trigo',qty:'×1',cat:'Desayuno y panadería'},
 ];
 const PLANTILLA_DESPENSA=[
-  {cat:'Frescos',items:['Huevos','Fruta de temporada','Verdura de temporada','Ensalada','Tomate','Lechuga','Pepino','Zanahoria','Cebolla','Ajo','Plátano','Manzana','Naranja']},
+  {cat:'Verduras',items:['Verdura de temporada','Ensalada','Tomate','Lechuga','Pepino','Zanahoria','Cebolla','Ajo']},
+  {cat:'Frutas',items:['Fruta de temporada','Plátano','Manzana','Naranja']},
   {cat:'Carnicería y pescadería',items:['Pechuga de pollo','Muslos de pollo','Lomo de cerdo','Carne picada','Ternera','Salmón','Merluza','Atún fresco','Jamón','Baicon','Embutido']},
   {cat:'Refrigerados',items:['Leche','Queso de Burgos','Queso en lonchas','Queso rallado','Queso mozzarella','Mantequilla','Yogur líquido','Yogur de cuchara','Nata / crema de cocinar']},
   {cat:'Congelados',items:['Pescado congelado','Gambas congeladas','Verdura congelada','Cebolla congelada','Pimiento congelado','Helados']},
   {cat:'Desayuno y panadería',items:['Pan de molde','Tortillas de trigo','Tostadas','Galletas','Cereales / Kellogg\'s','Bollería','Café','Manzanilla / infusiones','Cacao / Cola Cao','Mermelada fresa','Mermelada arándanos','Mermelada melocotón','Miel']},
-  {cat:'Despensa',items:['Arroz','Espaguetis','Macarrones','Garbanzos','Lentejas','Frijoles','Atún en lata','Tomate en lata','Conservas','Aceite de oliva','Vinagre de módena','Sal','Especias','Harina','Azúcar','Salsa de tomate','Mayonesa','Salsa BBQ','Salsa de soja']},
+  {cat:'Despensa',items:['Huevos','Arroz','Espaguetis','Macarrones','Garbanzos','Lentejas','Frijoles','Atún en lata','Tomate en lata','Conservas','Aceite de oliva','Vinagre de módena','Sal','Especias','Harina','Azúcar','Salsa de tomate','Mayonesa','Salsa BBQ','Salsa de soja']},
   {cat:'Bebidas',items:['Agua','Refrescos','Zumos','Bebidas vegetales']},
   {cat:'Snacks',items:['Patatas fritas','Frutos secos','Chocolate','Palomitas']},
   {cat:'Bebé',items:['Leche de fórmula','Puré de verduras','Puré de frutas','Potitos','Galletas bebé','Pañales']},
@@ -881,7 +885,7 @@ const PLANTILLA_DESPENSA=[
 // DICCIONARIO DE INGREDIENTES
 let ingredientDict={};
 let _pendingRecipeData=null;
-const CAT_OPTIONS=['Frescos','Carnicería y pescadería','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
+const CAT_OPTIONS=['Verduras','Frutas','Carnicería y pescadería','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
 function catSelect(id,val='Despensa'){
   return `<select id="${id}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:13px;">${CAT_OPTIONS.map(c=>`<option${c===val?' selected':''}>${c}</option>`).join('')}</select>`;
 }
@@ -918,10 +922,11 @@ function getCategoryForIngredient(name){
   const kw=[
     {k:['pollo','pechuga','muslo','pavo','ternera','carne','lomo','cerdo','cordero','vacuno','churrasco','salchicha','chorizo','bacon','baicon','panceta','tocino','chicharron','costilla','jamón','salmón','merluza','atún','bonito','bacalao','gambas','langostino','pescado','marisco'],c:'Carnicería y pescadería'},
     {k:['leche','queso','yogur','nata','mantequilla','crema'],c:'Refrigerados'},
-    {k:['huevo','tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','calabaza','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz','aguacate','champiñon','boniato','remolacha','cilantro','fruta','manzana','naranja','plátano','banano','banana','fresa','melón','uva','pera','melocotón','kiwi','piña','mango','limón'],c:'Frescos'},
+    {k:['tomate','cebolla','ajo','pimiento','pepino','lechuga','zanahoria','calabacín','calabaza','brócoli','espinaca','patata','papa','berenjena','coliflor','puerro','espárrago','judía','guisante','maíz','aguacate','champiñon','boniato','remolacha','cilantro'],c:'Verduras'},
+    {k:['fruta','manzana','naranja','plátano','banano','banana','fresa','melón','uva','pera','melocotón','kiwi','piña','mango','limón'],c:'Frutas'},
     {k:['congelado','congelada','helado'],c:'Congelados'},
     {k:['pan','tortilla','galleta','harina','cereales','bollería','café','manzanilla','infusión','cacao','cola cao','miel','mermelada','tostada'],c:'Desayuno y panadería'},
-    {k:['arroz','pasta','espagueti','macarrón','legumbre','garbanzo','lenteja','frijol','conserva','aceite','vinagre','sal','especia','azúcar','salsa','mayonesa'],c:'Despensa'},
+    {k:['arroz','pasta','espagueti','macarrón','legumbre','garbanzo','lenteja','frijol','conserva','aceite','vinagre','sal','especia','azúcar','salsa','mayonesa','huevo'],c:'Despensa'},
     {k:['agua','refresco','zumo','bebida vegetal'],c:'Bebidas'},
     {k:['patatas fritas','fruto seco','chocolate','palomita','aperitivo'],c:'Snacks'},
     {k:['pañal','potito','papilla'],c:'Bebé'},
@@ -931,7 +936,7 @@ function getCategoryForIngredient(name){
   for(const{k,c}of kw){if(k.some(w=>nkey.includes(normTxt(w))))return c;}
   return null;
 }
-const CAT_EMOJI={'Frescos':'🍊','Carnicería y pescadería':'🥩','Refrigerados':'🧀','Congelados':'❄️','Desayuno y panadería':'🥣','Despensa':'🫙','Bebidas':'🥤','Snacks':'🍿','Bebé':'🍼','Higiene personal':'🧴','Limpieza':'🧹'};
+const CAT_EMOJI={'Verduras':'🥦','Frutas':'🍊','Carnicería y pescadería':'🥩','Refrigerados':'🧀','Congelados':'❄️','Desayuno y panadería':'🥣','Despensa':'🫙','Bebidas':'🥤','Snacks':'🍿','Bebé':'🍼','Higiene personal':'🧴','Limpieza':'🧹'};
 let plantillaExtras=[];
 function normTxt(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 // Equivalencias de comida entre versión adulto y versión bebé, para relacionar el menú de Emma
@@ -1107,7 +1112,7 @@ function resetHabitualForm(){
   editingHabitualId=null;
   document.getElementById('habitualName').value='';
   document.getElementById('habitualQty').value='';
-  document.getElementById('habitualCat').value=activeHabitualType==='fruta'?'Frescos':'Despensa';
+  document.getElementById('habitualCat').value=activeHabitualType==='fruta'?'Frutas':'Despensa';
   document.getElementById('habitualSaveBtn').textContent='+ Añadir';
 }
 function renderHabituales(){
@@ -1239,7 +1244,7 @@ async function confirmAddFrutas(){
   if(!checked.length){closeModal('frutasPickModal');return;}
   const existingKeys=new Set(_lastShopItems.map(i=>normIngKey(i.ingredient_name)));
   const toInsert=_frutasAll.filter(b=>checked.includes(b.id)&&!existingKeys.has(normIngKey(b.name)))
-    .map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.unit||'',category:b.category||'Frescos',checked:false}));
+    .map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.unit||'',category:b.category||'Frutas',checked:false}));
   if(toInsert.length)await sb.from('shopping_list_items').insert(toInsert);
   closeModal('frutasPickModal');
   loadShoppingList();
@@ -2594,7 +2599,7 @@ function renderShoppingList(items){
   let filtered=items;
   if(_shopSearch)filtered=filtered.filter(i=>normTxt(i.ingredient_name).includes(_shopSearch));
   if(_shopFilter)filtered=filtered.filter(i=>(i.category||'Otros')===_shopFilter);
-  const CATS=['Carnicería y pescadería','Frescos','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
+  const CATS=['Carnicería y pescadería','Verduras','Frutas','Refrigerados','Congelados','Desayuno y panadería','Despensa','Bebidas','Snacks','Bebé','Higiene personal','Limpieza'];
   const byCategory={};
   filtered.forEach(item=>{const cat=item.category||'Otros';if(!byCategory[cat])byCategory[cat]=[];byCategory[cat].push(item);});
   const unchecked={},checkedCat={};
