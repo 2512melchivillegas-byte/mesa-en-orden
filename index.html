@@ -1912,29 +1912,35 @@ async function generateMenu(){
 
   // ---------- 1. HISTORIAL ----------
   // Últimos 15 días: no se repite ninguna receta ni la misma "pieza principal".
-  // Últimos ~4 meses: de ahí sale cuánto se come de cada proteína y qué platos se repiten más
-  // (los favoritos de la casa), para que el menú se parezca a lo que realmente cocinamos.
+  // Últimos ~4 meses: de ahí sale cuánto se come de cada proteína y qué platos se repiten más.
+  // Todas las semanas confirmadas anteriores: sirven de PLANTILLA para replicar semanas que ya
+  // funcionaron bien (las marcadas con ⭐ en el historial tienen prioridad).
   const RECENT_DAYS=15,HISTORY_DAYS=120;
   const recentAdultIds=new Set(),recentBebeIds=new Set();
   const histCount={};          // recipe_id -> veces comida (fuera de los últimos 15 días)
   const histProtein={};        // proteína -> veces comida
   let histTotal=0;
+  const pastWeeks=[];          // [{id,week_start,is_favorite,days:[{date,recipe}]}]
+  let recentISO='';
   try{
     const hhId=currentHousehold?.id;
     const start=new Date(days[0]+'T00:00:00');
     const recentCut=new Date(start);recentCut.setDate(recentCut.getDate()-RECENT_DAYS);
     const histCut=new Date(start);histCut.setDate(histCut.getDate()-HISTORY_DAYS);
-    const menuFrom=new Date(histCut);menuFrom.setDate(menuFrom.getDate()-14);
-    let mq=sb.from('weekly_menus').select('id').eq('status','confirmed').gte('week_start',toISODate(menuFrom)).lt('week_start',days[0]);
+    recentISO=toISODate(recentCut);
+    const histISO=toISODate(histCut);
+    let mq=sb.from('weekly_menus').select('id,week_start,is_favorite').eq('status','confirmed').lt('week_start',days[0]);
     mq=hhId?mq.eq('household_id',hhId):mq.eq('user_id',currentUser.id);
     const{data:menus}=await mq;
     const menuIds=(menus||[]).map(m=>m.id);
     if(menuIds.length){
-      const{data:rows}=await sb.from('weekly_menu_days').select('recipe_id,person_type,day_of_week,skipped').in('menu_id',menuIds).gte('day_of_week',toISODate(histCut)).lt('day_of_week',days[0]);
-      const recentISO=toISODate(recentCut);
+      const{data:rows}=await sb.from('weekly_menu_days').select('menu_id,recipe_id,person_type,day_of_week,skipped').in('menu_id',menuIds).lt('day_of_week',days[0]);
       const byId=new Map(recipes.map(r=>[r.id,r]));
+      const weekMap=new Map((menus||[]).map(m=>[m.id,{...m,days:[]}]));
       (rows||[]).forEach(r=>{
-        if(!r.recipe_id||r.skipped)return;
+        if(!isISODate(r.day_of_week))return; // historial antiguo con nombres de día
+        if(r.person_type==='adulto'&&!r.skipped&&r.recipe_id&&byId.get(r.recipe_id))weekMap.get(r.menu_id)?.days.push({date:r.day_of_week,recipe:byId.get(r.recipe_id)});
+        if(!r.recipe_id||r.skipped||r.day_of_week<histISO)return;
         const isRecent=r.day_of_week>=recentISO;
         if(r.person_type!=='adulto'){if(isRecent)recentBebeIds.add(r.recipe_id);return;}
         if(isRecent)recentAdultIds.add(r.recipe_id);
@@ -1942,6 +1948,7 @@ async function generateMenu(){
         const p=byId.get(r.recipe_id)?.protein_type;
         if(p){histProtein[p]=(histProtein[p]||0)+1;histTotal++;}
       });
+      weekMap.forEach(w=>{if(w.days.length>=3){w.days.sort((x,y)=>x.date<y.date?-1:1);pastWeeks.push(w);}});
     }
   }catch(e){console.error('No se pudo revisar el historial',e);}
 
@@ -1998,14 +2005,44 @@ async function generateMenu(){
   proteins.forEach(p=>{share[p]=((histProtein[p]||0)+1)/(histTotal+proteins.length);});
   const nCookDays=days.length;
 
-  // Día de pescado obligatorio: si ningún día fijado lleva pescado, elegimos uno (evitando el domingo
-  // si se puede) y lo resolvemos primero para que tenga todas las opciones frescas disponibles.
   const hasFish=ar.some(r=>r.protein_type==='pescado');
-  let fishDay=null;
-  if(hasFish&&!days.some(d=>proteinOf(d)==='pescado')){
-    const opts=emptyDays.filter(d=>new Date(d+'T00:00:00').getDay()!==0);
-    const pickFrom=opts.length?opts:emptyDays;
-    fishDay=pickFrom[Math.floor(Math.random()*pickFrom.length)];
+  const dow=d=>new Date(d+'T00:00:00').getDay();
+
+  // ---------- 3b. SEMANA PLANTILLA ----------
+  // Elegimos una semana pasada que funcionó bien y la usamos de base: se replican sus platos
+  // (mismo día de la semana) y, si alguno no se puede repetir, se busca el más parecido.
+  // Solo valen semanas que quedan fuera de los últimos 15 días (si no, todo serían repeticiones).
+  const recipeOk=r=>r&&ar.some(x=>x.id===r.id);
+  function weekQuality(w){
+    const rs=w.days.map(x=>x.recipe);
+    let q=0;
+    if(w.is_favorite)q+=2.5;
+    q+=new Set(rs.map(r=>r.protein_type)).size*0.8;
+    if(rs.some(r=>r.protein_type==='pescado'))q+=1;
+    rs.forEach((r,i)=>{if(i){if(isPasta(r)&&isPasta(rs[i-1]))q-=2;if(r.protein_type===rs[i-1].protein_type)q-=1;}});
+    q-=Math.max(0,rs.filter(isPasta).length-1)*1.5;
+    const usable=rs.filter(r=>recipeOk(r)&&!recentAdultIds.has(r.id)).length;
+    q+=(usable/rs.length)*6; // cuántos platos se pueden repetir tal cual hoy
+    const wd=new Set(w.days.map(x=>dow(x.date)));
+    q+=emptyDays.filter(d=>wd.has(dow(d))).length*0.3;
+    return q+Math.random()*3; // azar: al volver a pulsar Generar puede salir otra semana buena
+  }
+  let template=null,bestQ=-Infinity;
+  const tplCandidates=pastWeeks.filter(w=>w.days.every(x=>x.date<recentISO));
+  tplCandidates.forEach(w=>{const q=weekQuality(w);if(q>bestQ){bestQ=q;template=w;}});
+  const tplFor={}; // día objetivo -> receta de la plantilla (mismo día de la semana)
+  if(template){
+    emptyDays.forEach(d=>{const m=template.days.find(x=>dow(x.date)===dow(d));if(m&&recipeOk(m.recipe))tplFor[d]=m.recipe;});
+  }
+  function similarity(a,b){
+    if(!a||!b)return 0;
+    let s=0;
+    if(a.protein_type===b.protein_type)s+=2;
+    const fa=carbFamilies(a);carbFamilies(b).forEach(f=>{if(fa.has(f))s+=1;});
+    if(recipeStyle(a)&&recipeStyle(a)===recipeStyle(b))s+=1;
+    const pa=new Set((a.pieces||[]).map(p=>normTxt(p.name)));
+    (b.pieces||[]).forEach(p=>{if(pa.has(normTxt(p.name)))s+=0.5;});
+    return s;
   }
 
   // ---------- 4. ELEGIR RECETA DE UN DÍA ----------
@@ -2038,7 +2075,7 @@ async function generateMenu(){
     [chosen[days[i-1]],chosen[days[i+1]]].forEach(n=>{if(n)carbFamilies(n).forEach(f=>{if(fams.has(f))s-=0.9;});});
     return s+Math.random()*1.5;
   }
-  function pickAdult(d,onlyProtein){
+  function pickAdult(d,onlyProtein,tpl){
     const i=days.indexOf(d);
     const isSunday=new Date(d+'T00:00:00').getDay()===0;
     let base=ar.filter(r=>isSunday||!r.sunday_only);
@@ -2049,7 +2086,7 @@ async function generateMenu(){
       const pool=base.filter(r=>active.every(rule=>rule.test(r,d,i)));
       if(pool.length){
         let best=null,bestS=-Infinity;
-        pool.forEach(r=>{const sc=scoreRecipe(r,d,i);if(sc>bestS){bestS=sc;best=r;}});
+        pool.forEach(r=>{const sc=scoreRecipe(r,d,i)+similarity(tpl,r)*2.5;if(sc>bestS){bestS=sc;best=r;}});
         RULES.slice(keep).forEach(rule=>{if(!rule.test(best,d,i))relaxed.add(rule.label);});
         return best;
       }
@@ -2058,10 +2095,32 @@ async function generateMenu(){
   }
 
   // ---------- 5. GENERAR ----------
-  const order=fishDay?[fishDay,...emptyDays.filter(d=>d!==fishDay)]:emptyDays;
-  order.forEach(day=>{
-    const adultoRecipe=pickAdult(day,day===fishDay?'pescado':null);
-    chosen[day]=adultoRecipe;
+  // Pasada 1: se mantienen tal cual los platos de la plantilla que cumplen todas las reglas.
+  let keptFromTpl=0;
+  emptyDays.forEach(day=>{
+    const t=tplFor[day];if(!t)return;
+    const i=days.indexOf(day);
+    if(t.sunday_only&&dow(day)!==0)return;
+    if(RULES.every(rule=>rule.test(t,day,i))){chosen[day]=t;keptFromTpl++;}
+  });
+  // Día de pescado obligatorio: si no hay pescado entre los fijados ni en lo que ya viene de la
+  // plantilla, reservamos un día libre (mejor entre semana) para pescado.
+  let fishDay=null;
+  if(hasFish&&!days.some(d=>proteinOf(d)==='pescado')){
+    let free=emptyDays.filter(d=>!chosen[d]);
+    if(!free.length){ // todo vino de la plantilla: liberamos un día entre semana
+      const cand=emptyDays.filter(d=>dow(d)!==0);const d=(cand.length?cand:emptyDays)[Math.floor(Math.random()*(cand.length||emptyDays.length))];
+      delete chosen[d];keptFromTpl--;free=[d];
+    }
+    const opts=free.filter(d=>dow(d)!==0);const pickFrom=opts.length?opts:free;
+    fishDay=pickFrom[Math.floor(Math.random()*pickFrom.length)];
+  }
+  // Pasada 2: el resto de días, con el plato más parecido al de la plantilla que cumpla las reglas.
+  const order=emptyDays.filter(d=>!chosen[d]);
+  if(fishDay){order.splice(order.indexOf(fishDay),1);order.unshift(fishDay);}
+  order.forEach(day=>{chosen[day]=pickAdult(day,day===fishDay?'pescado':null,tplFor[day]);});
+  emptyDays.forEach(day=>{
+    const adultoRecipe=chosen[day]||null;
     if(!currentMenu[day])currentMenu[day]={};
     currentMenu[day].adulto={recipe:adultoRecipe,skipped:false};
     currentMenu[day].protein=adultoRecipe?.protein_type||null;
@@ -2084,8 +2143,9 @@ async function generateMenu(){
     });
   });
   renderPlanner();showPlannerActions();
-  if(relaxed.size)showToast('Menú generado ✨ — no hubo más remedio que '+[...relaxed].join(', ')+' (faltan recetas)');
-  else showToast('Menú generado ✨ sin repetir las últimas 2 semanas'+(fishDay||days.some(d=>proteinOf(d)==='pescado')?' · con día de pescado 🐟':''));
+  const tplTxt=template?' · basado en tu semana del '+new Date(template.week_start+'T00:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})+(template.is_favorite?' ⭐':'')+' ('+keptFromTpl+' platos iguales, el resto parecidos)':'';
+  if(relaxed.size)showToast('Menú generado ✨'+tplTxt+' — no hubo más remedio que '+[...relaxed].join(', ')+' (faltan recetas)');
+  else showToast('Menú generado ✨'+tplTxt+(fishDay||days.some(d=>proteinOf(d)==='pescado')?' · con pescado 🐟':''));
 }
 async function resetMenu(){
   if(!await appConfirm('¿Seguro que quieres empezar de cero?'))return;
