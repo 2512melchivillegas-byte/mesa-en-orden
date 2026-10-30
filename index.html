@@ -983,8 +983,23 @@ function getRecipeMatchTokens(r){
 }
 // Elige la mejor receta de comida de Emma en base a los ingredientes/piezas que comparte
 // con la receta de adultos (en vez de elegir al azar solo por tipo de proteína)
+// Reglas fijas adulto -> Emma: si el plato de adultos lleva X (en nombre, piezas o ingredientes),
+// la comida de Emma tiene que ser una receta suya con Y en el nombre.
+const BEBE_RULES=[
+  {when:['lenteja'],then:['lenteja']},   // adultos con lentejas -> Emma lentejas
+  {when:['bonito'],then:['merluza']},    // adultos con bonito del norte -> Emma merluza
+];
+function bebeRuleFor(adultRecipe){
+  if(!adultRecipe)return null;
+  const txt=normTxt([adultRecipe.name,adultRecipe.ingredients_list,...(adultRecipe.pieces||[]).map(p=>(p.name||'')+' '+(p.ingredients_list||''))].join(' '));
+  return BEBE_RULES.find(rule=>rule.when.some(w=>txt.includes(w)))||null;
+}
 function pickBestBebeComida(adultRecipe,excludeIds){
-  const poolAll=recipes.filter(x=>x.category==='bebe'&&(x.meal_time||[]).includes('comida'));
+  let poolAll=recipes.filter(x=>x.category==='bebe'&&(x.meal_time||[]).includes('comida'));
+  // Si hay regla fija para este plato, solo valen las recetas de Emma que la cumplen
+  // (aunque haya que repetir una de las últimas semanas: la regla manda).
+  const rule=bebeRuleFor(adultRecipe);
+  if(rule){const ruled=poolAll.filter(r=>rule.then.some(w=>normTxt(r.name).includes(w)));if(ruled.length)poolAll=ruled;}
   const pool=(excludeIds&&excludeIds.size)?poolAll.filter(r=>!excludeIds.has(r.id)):poolAll;
   const finalPool=pool.length?pool:poolAll;
   if(!finalPool.length)return null;
