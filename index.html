@@ -2292,7 +2292,14 @@ function renderPlanner(){
     if(activePlanTab==='adulto'){
       const a=slot.adulto||{recipe:null,skipped:false};
       const rec=a.recipe;
-      bodyHtml=`
+      // Referencia: qué come Emma ese día (su comida principal), para comprobar la relación sin cambiar de pestaña.
+      const em=(slot.bebe||{}).comida||{};
+      const emRec=em.recipe;
+      const bebeRef=`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:6px;background:var(--beige);border-radius:8px;font-size:12px;color:var(--sage);line-height:1.35;">
+          <span style="flex-shrink:0;">👶 Emma:</span>
+          ${em.skipped?`<span style="font-style:italic;">No preparado</span>`:emRec?`<span style="font-weight:600;cursor:pointer;text-decoration:underline dotted;min-width:0;" onclick="viewRecipe('${emRec.id}')" title="Ver receta de Emma">${emRec.name}</span>`:`<span style="font-style:italic;">Sin receta</span>`}
+        </div>`;
+      bodyHtml=bebeRef+`
         <div class="meal-row">
           <label class="skip-toggle" title="Fuera de casa"><input type="checkbox" ${a.skipped?'checked':''} onchange="toggleSkip('${day}','adulto',null,this.checked)">🚪 Fuera</label>
           ${a.skipped?`<span class="meal-skipped">Fuera de casa</span>`:`<span class="meal-name ${rec?'':'meal-empty'}" ${rec?`onclick="viewRecipe('${rec.id}')" style="cursor:pointer;" title="Ver receta"`:''}>${rec?rec.name:'Sin receta disponible'}</span><button class="btn-icon" onclick="openChangeRecipe('${day}','adulto',null)" title="Cambiar receta completa">🔄</button>`}
