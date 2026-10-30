@@ -2530,14 +2530,15 @@ async function confirmMenu(){
   setTimeout(()=>document.querySelector('[onclick*="pageCompra"]').click(),800);
 }
 // Sincroniza la lista de compra existente de un menú ya confirmado: añade los ingredientes/básicos
-// que falten según el menú actualizado, sin tocar los ítems ya existentes (precios, marcados, etc. se conservan).
-// No elimina ítems que ya no apliquen — para eso sigue existiendo el botón 🔄 Regenerar.
+// que falten según el menú actualizado y actualiza de qué recetas viene cada uno. También quita los
+// ingredientes de recetas que ya no hacen falta, pero SOLO si no están marcados, no tienen precio y no
+// se añadieron a mano (lo que ya tocaste en la lista se conserva siempre).
 async function syncShoppingListForMenu(menuId,hhId){
   const{data:lists}=await sb.from('shopping_lists').select('id').eq('menu_id',menuId).order('created_at',{ascending:false}).limit(1);
   const listId=lists?.[0]?.id;
   if(!listId){await generateShoppingList(menuId,hhId);return;}
   currentListId=listId;
-  const{data:existingItems}=await sb.from('shopping_list_items').select('ingredient_name').eq('list_id',listId);
+  const{data:existingItems}=await sb.from('shopping_list_items').select('id,ingredient_name,checked,price,source_recipes').eq('list_id',listId);
   const existingKeys=new Set((existingItems||[]).map(i=>normIngKey(i.ingredient_name)));
   const pantryNames=pantryItems.map(p=>normIngKey(p.ingredient_name));
   const weeklyBasics=await getWeeklyBasics();
@@ -2549,6 +2550,19 @@ async function syncShoppingListForMenu(menuId,hhId){
   const newRecipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!existingKeys.has(normIngKey(i.ingredient_name))&&!newBasicKeys.has(normIngKey(i.ingredient_name)));
   const toInsert=[...newBasics,...newRecipeItems];
   if(toInsert.length)await sb.from('shopping_list_items').insert(toInsert);
+  // Ítems de recetas que ya no corresponden al menú (ej. la proteína de Emma que ahora sale del lote de adultos).
+  const wantedByKey=new Map(Object.values(ingMap).map(i=>[normIngKey(i.ingredient_name),i]));
+  const toDelete=[];
+  for(const it of existingItems||[]){
+    if(!it.source_recipes)continue;               // básicos y añadidos a mano: no se tocan
+    const want=wantedByKey.get(normIngKey(it.ingredient_name));
+    if(want){
+      if(want.source_recipes&&want.source_recipes!==it.source_recipes)await sb.from('shopping_list_items').update({source_recipes:want.source_recipes}).eq('id',it.id);
+    }else if(!it.checked&&(it.price==null||it.price==='')){
+      toDelete.push(it.id);
+    }
+  }
+  if(toDelete.length)await sb.from('shopping_list_items').delete().in('id',toDelete);
   loadShoppingList();
 }
 function getNextWeekday(dayName){
