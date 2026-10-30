@@ -2542,8 +2542,8 @@ async function syncShoppingListForMenu(menuId,hhId){
   const pantryNames=pantryItems.map(p=>normIngKey(p.ingredient_name));
   const weeklyBasics=await getWeeklyBasics();
   const newBasics=weeklyBasics.filter(b=>!pantryNames.includes(normIngKey(b.name))&&!existingKeys.has(normIngKey(b.name))).map(b=>({list_id:listId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
-  const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',menuId);
-  const menuRecipes=(days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>d.recipes).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
+  const{data:days}=await sb.from('weekly_menu_days').select('day_of_week,person_type,recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',menuId);
+  const menuRecipes=recipesForShopping((days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>({day:d.day_of_week,person:d.person_type,recipe:{...d.recipes,pieces:(d.recipes.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}})));
   const ingMap=buildIngredientItemMap(menuRecipes,listId);
   const newBasicKeys=new Set(newBasics.map(b=>normIngKey(b.ingredient_name)));
   const newRecipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!existingKeys.has(normIngKey(i.ingredient_name))&&!newBasicKeys.has(normIngKey(i.ingredient_name)));
@@ -2607,13 +2607,53 @@ async function showIngredientSource(el){
   `).join('');
 }
 function isSubset(a,b){for(const x of a)if(!b.has(x))return false;return true;}
+// PROTEÍNA COMPARTIDA ADULTOS/EMMA
+// Casi siempre Emma come la misma proteína que los adultos ese día, sacada del mismo lote
+// (ej. adultos "Carne en filete" a la plancha, Emma "Carne en trozo"): no es otra compra.
+// Esta función agrupa cada ingrediente de carnicería en su "familia" de proteína.
+// Excepciones: atún y bonito del norte nunca se comparten (los adultos lo comen de lata y Emma
+// come merluza), y embutidos/productos preparados solo coinciden si son exactamente el mismo.
+function proteinShareKey(line){
+  const n=normTxt(line);
+  if(getCategoryForIngredient(line)!=='Carnicería y pescadería')return null;
+  if(/\b(atun|bonito)\b/.test(n))return null;
+  if(/(baicon|bacon|panceta|salchicha|jamon|chorizo|albondiga|hamburguesa|apanad)/.test(n))return 'exact:'+normIngKey(line);
+  if(/(camaron|gamba|langostino)/.test(n))return 'marisco';
+  if(/salmon/.test(n))return 'salmon';
+  if(/merluza/.test(n))return 'merluza';
+  if(/bacalao/.test(n))return 'bacalao';
+  if(/(pollo|pechuga|muslo|alas\b)/.test(n))return 'pollo';
+  if(/(cerdo|lomo|chicharron)/.test(n))return 'cerdo';
+  if(/(carne|ternera|churrasco|vacuno|costilla)/.test(n))return 'carne';
+  return 'exact:'+normIngKey(line);
+}
+// Recibe las comidas del menú [{day,person:'adulto'|'bebe',recipe}] y devuelve la lista de recetas
+// para la compra, marcando en las de Emma qué proteínas ya vienen del plato de adultos de ese mismo día.
+function recipesForShopping(meals){
+  const adultFamiliesByDay={}; // día -> Map(familia -> línea de ingrediente de adultos)
+  meals.forEach(m=>{
+    if(m.person!=='adulto'||!m.recipe)return;
+    const fams=adultFamiliesByDay[m.day]||(adultFamiliesByDay[m.day]=new Map());
+    buildIngredientLines(m.recipe).forEach(l=>{const k=proteinShareKey(l);if(k&&!fams.has(k))fams.set(k,l.trim());});
+  });
+  return meals.filter(m=>m.recipe).map(m=>{
+    if(m.person==='adulto')return m.recipe;
+    const fams=adultFamiliesByDay[m.day];
+    return fams&&fams.size?{...m.recipe,_sharedProteins:fams}:m.recipe;
+  });
+}
 function buildIngredientItemMap(recipesList,listId){
   const ingMap={};
   const entries=[]; // {key,tokens,ingredient_name,sources:Set} de lo ya añadido
+  const sharedSources=[]; // {shareKey,recipeName}: proteínas de Emma cubiertas por el lote de adultos
   recipesList.forEach(r=>{
     const recipeName=r.name||'';
     buildIngredientLines(r).forEach(line=>{
       const t=line.trim();if(!t)return;
+      if(r._sharedProteins){
+        const sk=proteinShareKey(t);
+        if(sk&&r._sharedProteins.has(sk)){sharedSources.push({adultLine:r._sharedProteins.get(sk),recipeName});return;}
+      }
       const key=normIngKey(t);
       const existing=entries.find(e=>e.key===key);
       if(existing){
@@ -2644,6 +2684,14 @@ function buildIngredientItemMap(recipesList,listId){
       entries.push({key,tokens,ingredient_name:t,sources});
     });
   });
+  // La proteína de Emma que sale del lote de adultos se anota como origen de esa misma línea,
+  // para que en "De qué recetas viene" se vea que también es para Emma.
+  sharedSources.forEach(({adultLine,recipeName})=>{
+    // La línea de adultos de ese día (o la línea en la que se fusionó, ej. "Pollo" -> "Pollo en cuadritos").
+    const k=normIngKey(adultLine),tk=new Set(ingTokens(adultLine));
+    const e=entries.find(x=>x.key===k&&ingMap[x.key])||entries.find(x=>ingMap[x.key]&&(isSubset(tk,x.tokens)||isSubset(x.tokens,tk)));
+    if(e&&recipeName){e.sources.add(recipeName);ingMap[e.key].source_recipes=Array.from(e.sources).join(', ');}
+  });
   return ingMap;
 }
 async function generateShoppingList(menuId,hhId){
@@ -2653,12 +2701,12 @@ async function generateShoppingList(menuId,hhId){
   const weeklyBasics=await getWeeklyBasics();
   const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(normIngKey(b.name))).map(b=>({list_id:list.id,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   // Ingredientes de recetas (base + piezas) — deduplicados, ignorando comidas marcadas como no preparadas
-  const menuRecipes=[];
-  Object.values(currentMenu).forEach(slot=>{
-    if(slot.adulto&&!slot.adulto.skipped&&slot.adulto.recipe)menuRecipes.push(slot.adulto.recipe);
-    Object.values(slot.bebe||{}).forEach(m=>{if(m&&!m.skipped&&m.recipe)menuRecipes.push(m.recipe);});
+  const meals=[];
+  Object.entries(currentMenu).forEach(([day,slot])=>{
+    if(slot.adulto&&!slot.adulto.skipped&&slot.adulto.recipe)meals.push({day,person:'adulto',recipe:slot.adulto.recipe});
+    Object.values(slot.bebe||{}).forEach(m=>{if(m&&!m.skipped&&m.recipe)meals.push({day,person:'bebe',recipe:m.recipe});});
   });
-  const ingMap=buildIngredientItemMap(menuRecipes,list.id);
+  const ingMap=buildIngredientItemMap(recipesForShopping(meals),list.id);
   const basicKeys=new Set(basicItems.map(b=>normIngKey(b.ingredient_name)));
   const recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!basicKeys.has(normIngKey(i.ingredient_name)));
   const allItems=[...basicItems,...recipeItems];
@@ -2881,8 +2929,8 @@ async function regenerateList(){
   const basicItems=weeklyBasics.filter(b=>!pantryNames.includes(normIngKey(b.name))).map(b=>({list_id:currentListId,ingredient_name:b.name,unit:b.qty,category:b.cat,checked:false}));
   let recipeItems=[];
   if(listRow?.menu_id){
-    const{data:days}=await sb.from('weekly_menu_days').select('recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',listRow.menu_id);
-    const menuRecipes=(days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>d.recipes).map(r=>({...r,pieces:(r.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}));
+    const{data:days}=await sb.from('weekly_menu_days').select('day_of_week,person_type,recipes(*, recipe_components(component_id, components(*))),skipped').eq('menu_id',listRow.menu_id);
+    const menuRecipes=recipesForShopping((days||[]).filter(d=>!d.skipped&&d.recipes).map(d=>({day:d.day_of_week,person:d.person_type,recipe:{...d.recipes,pieces:(d.recipes.recipe_components||[]).map(rc=>rc.components).filter(Boolean)}})));
     const ingMap=buildIngredientItemMap(menuRecipes,currentListId);
     const basicKeys=new Set(basicItems.map(b=>normIngKey(b.ingredient_name)));
     recipeItems=Object.values(ingMap).filter(i=>!pantryNames.includes(normIngKey(i.ingredient_name))&&!basicKeys.has(normIngKey(i.ingredient_name)));
