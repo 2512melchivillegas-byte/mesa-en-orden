@@ -2300,7 +2300,14 @@ function renderPlanner(){
         ${(!a.skipped&&rec&&rec.pieces&&rec.pieces.length)?`<div class="meal-pieces">${rec.pieces.map(p=>`<span class="piece-chip">${ROLE_ICON[p.role]||'🧩'} ${p.name}<span onclick="openSwapPieza('${day}','adulto',null,'${p.id}')" title="Cambiar esta pieza">🔁</span></span>`).join('')}</div>`:''}`;
     }else{
       const bebe=slot.bebe||{};
-      bodyHtml=BEBE_MEALS.map(mt=>{
+      // Referencia: qué comen los adultos ese día, para comprobar la relación sin cambiar de pestaña.
+      const ad=slot.adulto||{};
+      const adRec=ad.recipe;
+      const adultRef=`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:6px;background:var(--beige);border-radius:8px;font-size:12px;color:var(--sage);line-height:1.35;">
+          <span style="flex-shrink:0;">🧑 Adultos:</span>
+          ${ad.skipped?`<span style="font-style:italic;">Fuera de casa</span>`:adRec?`<span style="font-weight:600;cursor:pointer;text-decoration:underline dotted;min-width:0;" onclick="viewRecipe('${adRec.id}')" title="Ver receta de adultos">${adRec.name}</span>`:`<span style="font-style:italic;">Sin receta</span>`}
+        </div>`;
+      bodyHtml=adultRef+BEBE_MEALS.map(mt=>{
         const m=bebe[mt]||{recipe:null,skipped:false};
         const rec=m.recipe;
         return `<div class="meal-row">
